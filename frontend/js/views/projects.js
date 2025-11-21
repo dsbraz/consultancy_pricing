@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { formatCurrency } from '../utils.js';
+import { escapeHtml } from '../sanitize.js';
 
 export async function renderProjects(container) {
     let currentProjectId = null;
@@ -347,7 +348,7 @@ export async function renderProjects(container) {
         const profs = await api.get('/professionals/');
         const sel = document.getElementById('sel-add-prof');
 
-        sel.innerHTML = '<option value="">-- Selecionar --</option>' + profs.map(p => `<option value="${p.id}" data-cost="${p.hourly_cost}">${p.name} (${p.role} ${p.level})</option>`).join('');
+        sel.innerHTML = '<option value="">-- Selecionar --</option>' + profs.map(p => `<option value="${p.id}" data-cost="${p.hourly_cost}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('');
 
         // Update cost display on change
         sel.onchange = () => {
@@ -379,7 +380,7 @@ export async function renderProjects(container) {
         const list = await api.get('/offers/');
         const sel = document.getElementById('sel-offer');
         sel.innerHTML = '<option value="">Selecione uma oferta</option>' +
-            list.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+            list.map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('');
     }
 
     async function loadAllocationTable(projectId) {
@@ -429,8 +430,8 @@ export async function renderProjects(container) {
         html += '<tbody>';
         data.allocations.forEach(alloc => {
             html += '<tr>';
-            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; position: sticky; left: 0; background: white; z-index: 5;">${alloc.professional.name}</td>`;
-            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${alloc.professional.role} ${alloc.professional.level}</td>`;
+            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; position: sticky; left: 0; background: white; z-index: 5;">${escapeHtml(alloc.professional.name)}</td>`;
+            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${escapeHtml(alloc.professional.role)} ${escapeHtml(alloc.professional.level)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center;">${formatCurrency(alloc.professional.hourly_cost)}</td>`;
 
             // Selling Rate column (fixed per professional)
@@ -466,13 +467,22 @@ export async function renderProjects(container) {
 
             html += `<td class="total-hours-cell" style="padding: 0.5rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${totalHours}h</td>`;
             html += `<td style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb;">
-                <button class="btn btn-sm btn-danger" onclick="removeProfessionalFromAllocation(${alloc.allocation_id}, '${alloc.professional.name.replace(/'/g, "\\'")}')">🗑️</button>
+                <button class="btn btn-sm btn-danger" data-allocation-id="${alloc.allocation_id}" data-professional-name="${escapeHtml(alloc.professional.name)}">🗑️</button>
             </td>`;
             html += '</tr>';
         });
         html += '</tbody></table>';
 
         container.innerHTML = html;
+
+        // Add event delegation for delete buttons
+        container.querySelectorAll('button[data-allocation-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const allocationId = btn.dataset.allocationId;
+                const professionalName = btn.dataset.professionalName;
+                window.removeProfessionalFromAllocation(allocationId, professionalName);
+            });
+        });
 
         // Add event listeners for dynamic total calculation
         const rows = container.querySelectorAll('tbody tr');
@@ -509,20 +519,37 @@ export async function renderProjects(container) {
             <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div>
-                        <h4 style="margin: 0 0 0.25rem 0;">${p.name}</h4>
+                        <h4 style="margin: 0 0 0.25rem 0;">${escapeHtml(p.name)}</h4>
                         <small style="color: #6b7280;">
-                            Início: ${p.start_date} | Duração: ${p.duration_months} meses<br>
+                            Início: ${escapeHtml(p.start_date)} | Duração: ${p.duration_months} meses<br>
                             Impostos: ${p.tax_rate}% | Margem: ${p.margin_rate}%
                         </small>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-sm" onclick="viewProject(${p.id})">Visualizar</button>
-                        <button class="btn btn-sm" onclick="editProject(${p.id})">Editar</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id}, '${p.name}')">Excluir</button>
+                        <button class="btn btn-sm" data-action="view" data-project-id="${p.id}">Visualizar</button>
+                        <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}">Editar</button>
+                        <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}">Excluir</button>
                     </div>
                 </div>
             </div>
         `).join('');
+
+        // Add event delegation for project action buttons
+        listDiv.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                const projectId = parseInt(btn.dataset.projectId);
+
+                if (action === 'view') {
+                    window.viewProject(projectId);
+                } else if (action === 'edit') {
+                    window.editProject(projectId);
+                } else if (action === 'delete') {
+                    const projectName = btn.dataset.projectName;
+                    window.deleteProject(projectId, projectName);
+                }
+            });
+        });
     }
 
     // View project details

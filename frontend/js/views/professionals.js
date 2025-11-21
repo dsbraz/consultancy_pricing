@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { formatCurrency } from '../utils.js';
+import { escapeHtml } from '../sanitize.js';
 
 export async function renderProfessionals(container) {
     let editingId = null;
@@ -216,7 +217,7 @@ export async function renderProfessionals(container) {
                     <details style="margin-top: 0.5rem;">
                         <summary style="cursor: pointer; color: var(--color-error);">Ver detalhes dos erros</summary>
                         <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                            ${result.error_details.map(err => `<li>${err}</li>`).join('')}
+                            ${result.error_details.map(err => `<li>${escapeHtml(err)}</li>`).join('')}
                         </ul>
                     </details>
                 `;
@@ -274,18 +275,33 @@ export async function renderProfessionals(container) {
         const tbody = document.querySelector('#prof-table tbody');
         tbody.innerHTML = profs.map(p => `
             <tr>
-                <td>${p.pid || '-'}</td>
-                <td>${p.name}</td>
-                <td>${p.role}</td>
-                <td>${p.level}</td>
+                <td>${escapeHtml(p.pid || '-')}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td>${escapeHtml(p.role)}</td>
+                <td>${escapeHtml(p.level)}</td>
                 <td>${p.is_vacancy ? 'Vaga' : 'Pessoa'}</td>
                 <td>${formatCurrency(p.hourly_cost)}</td>
                 <td>
-                    <button class="btn btn-sm" onclick="editProfessional(${p.id})">Editar</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteProfessional(${p.id}, '${p.name}')">Excluir</button>
+                    <button class="btn btn-sm" data-action="edit" data-professional-id="${p.id}">Editar</button>
+                    <button class="btn btn-sm btn-danger" data-action="delete" data-professional-id="${p.id}" data-professional-name="${escapeHtml(p.name)}">Excluir</button>
                 </td>
             </tr>
         `).join('');
+
+        // Add event delegation for action buttons
+        tbody.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                const professionalId = parseInt(btn.dataset.professionalId);
+
+                if (action === 'edit') {
+                    window.editProfessional(professionalId);
+                } else if (action === 'delete') {
+                    const professionalName = btn.dataset.professionalName;
+                    window.deleteProfessional(professionalId, professionalName);
+                }
+            });
+        });
     }
 
     // Make functions available globally for onclick handlers

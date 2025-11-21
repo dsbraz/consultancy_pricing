@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { escapeHtml } from '../sanitize.js';
 
 export async function renderOffers(container) {
     let editingId = null;
@@ -43,7 +44,7 @@ export async function renderOffers(container) {
                         <div style="margin-bottom: 0.5rem;">
                             <select id="off-prof-select" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
                                 <option value="">-- Selecionar Profissional Específico (Opcional) --</option>
-                                ${professionals.map(p => `<option value="${p.id}" data-role="${p.role}" data-level="${p.level}">${p.name} (${p.role} ${p.level})</option>`).join('')}
+                                ${professionals.map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
                             </select>
                         </div>
                         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
@@ -161,14 +162,14 @@ export async function renderOffers(container) {
             listDiv.innerHTML = '<small style="color: #6b7280;">Nenhum item adicionado ainda</small>';
         } else {
             listDiv.innerHTML = currentItems.map((item, idx) => {
-                let label = `${item.quantity}x ${item.role} - ${item.level}`;
+                let label = `${item.quantity}x ${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
                 if (item.professional_name) {
-                    label = `<strong>${item.professional_name}</strong> (${item.role} ${item.level})`;
+                    label = `<strong>${escapeHtml(item.professional_name)}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
                 } else if (item.professional_id) {
                     // Fallback if name missing in object (e.g. from edit load)
                     const p = professionals.find(p => p.id == item.professional_id);
-                    const pName = p ? p.name : 'Desconhecido';
-                    label = `<strong>${pName}</strong> (${item.role} ${item.level})`;
+                    const pName = p ? escapeHtml(p.name) : 'Desconhecido';
+                    label = `<strong>${pName}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
                 }
 
                 const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
@@ -177,9 +178,17 @@ export async function renderOffers(container) {
                 return `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 0.25rem; margin-bottom: 0.25rem;">
                     <span>${label}</span>
-                    <button class="btn btn-sm btn-danger" onclick="removeOfferItem(${idx})">Remover</button>
+                    <button class="btn btn-sm btn-danger" data-remove-index="${idx}">Remover</button>
                 </div>
             `}).join('');
+
+            // Add event listeners for remove buttons
+            listDiv.querySelectorAll('button[data-remove-index]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.removeIndex);
+                    window.removeOfferItem(idx);
+                });
+            });
         }
     }
 
@@ -250,21 +259,21 @@ export async function renderOffers(container) {
             <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
                     <div>
-                        <h4 style="margin: 0 0 0.5rem 0;">${t.name}</h4>
+                        <h4 style="margin: 0 0 0.5rem 0;">${escapeHtml(t.name)}</h4>
                         <small style="color: #6b7280;">${t.items.length} item${t.items.length !== 1 ? 's' : ''}</small>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-sm" onclick="editOffer(${t.id})">Editar</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteOffer(${t.id}, '${t.name}')">Excluir</button>
+                        <button class="btn btn-sm" data-action="edit" data-offer-id="${t.id}">Editar</button>
+                        <button class="btn btn-sm btn-danger" data-action="delete" data-offer-id="${t.id}" data-offer-name="${escapeHtml(t.name)}">Excluir</button>
                     </div>
                 </div>
                 <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
                     ${t.items.map(item => {
-            let label = `${item.quantity}x ${item.role} - ${item.level}`;
+            let label = `${item.quantity}x ${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
             if (item.professional_id) {
                 const p = professionals.find(p => p.id == item.professional_id);
-                const pName = p ? p.name : 'Profissional Específico';
-                label = `<strong>${pName}</strong> (${item.role} ${item.level})`;
+                const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
+                label = `<strong>${pName}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
             }
             const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
             label += allocLabel;
@@ -276,6 +285,21 @@ export async function renderOffers(container) {
                 </div>
             </div>
         `).join('');
+
+        // Add event delegation for offer action buttons
+        listDiv.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                const offerId = parseInt(btn.dataset.offerId);
+
+                if (action === 'edit') {
+                    window.editOffer(offerId);
+                } else if (action === 'delete') {
+                    const offerName = btn.dataset.offerName;
+                    window.deleteOffer(offerId, offerName);
+                }
+            });
+        });
     }
 
     // Edit offer
