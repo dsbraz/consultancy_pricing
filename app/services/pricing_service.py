@@ -68,7 +68,6 @@ class PricingService:
         final_price = total_selling + total_tax
         
         # Calculate final margin percentage: (1 - (Cost / Selling)) * 100
-        # User request: "a margem é '1 - custo / preco'"
         final_margin_percent = (1 - (total_cost / total_selling)) * 100 if total_selling > 0 else 0
         
         return {

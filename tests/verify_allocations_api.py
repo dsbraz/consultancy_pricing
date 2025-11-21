@@ -43,13 +43,6 @@ def test_allocations():
     try:
         # 3. Add professional to project
         print("Adding professional to project...")
-        # The endpoint expects query params for professional_id and selling_hourly_rate (optional)
-        # based on the router signature: def add_professional_to_project(..., professional_id: int, ...)
-        # But wait, looking at projects.js, it sends a POST to /projects/{id}/allocations/ with query params?
-        # Let's check the router definition again.
-        # @router.post("/projects/{project_id}/allocations/")
-        # def add_professional_to_project(..., professional_id: int, ...)
-        # Yes, FastAPI treats non-path, non-body params as query params by default.
         
         url = f"{BASE_URL}/projects/{proj_id}/allocations/?professional_id={prof_id}"
         resp = requests.post(url)
@@ -111,10 +104,6 @@ def test_allocations():
         # Cleanup
         print("Cleaning up...")
         requests.delete(f"{BASE_URL}/projects/{proj_id}")
-        # We don't have a delete professional endpoint easily accessible or safe to use? 
-        # Actually we do not have a delete professional endpoint in the router list I saw earlier?
-        # Let's check professionals.py if needed. But for now, leaving the professional is fine, or I can try to delete it if I knew the ID.
-        # The user didn't ask for delete professional, so I'll leave it.
         pass
 
     print("Verification successful!")
