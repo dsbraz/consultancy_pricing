@@ -7,6 +7,8 @@ from app.database import get_db
 from app.models import models
 from app.schemas import schemas
 from app.services.pricing_service import PricingService
+from app.services.calendar_service import CalendarService
+from datetime import datetime
 
 router = APIRouter()
 
@@ -49,8 +51,7 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
 
 @router.put("/projects/{project_id}", response_model=schemas.Project)
 def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session = Depends(get_db)):
-    from app.services.calendar_service import CalendarService
-    from datetime import datetime
+
     
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not db_project:
@@ -137,8 +138,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 
 @router.post("/projects/{project_id}/apply_offer/{offer_id}")
 def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
-    from app.services.calendar_service import CalendarService
-    from datetime import datetime
+
     
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     offer = db.query(models.Offer).options(
@@ -251,7 +251,7 @@ def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
 
 @router.get("/projects/{project_id}/allocation_table")
 def get_allocation_table(project_id: int, db: Session = Depends(get_db)):
-    from app.services.calendar_service import CalendarService
+
     
     project = db.query(models.Project).options(
         joinedload(models.Project.allocations)
@@ -370,8 +370,7 @@ def add_professional_to_project(
     Manually add a professional to a project.
     Creates ProjectAllocation and WeeklyAllocations for all project weeks.
     """
-    from app.services.calendar_service import CalendarService
-    from datetime import datetime
+
     
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:

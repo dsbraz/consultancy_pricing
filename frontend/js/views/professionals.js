@@ -4,6 +4,9 @@ import { escapeHtml } from '../sanitize.js';
 
 export async function renderProfessionals(container) {
     let editingId = null;
+    let currentSortColumn = 'name';
+    let currentSortDirection = 'asc';
+    let professionalsData = [];
 
     container.innerHTML = `
         <div class="card">
@@ -23,12 +26,12 @@ export async function renderProfessionals(container) {
             <table class="table" id="prof-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>Função</th>
-                        <th>Nível</th>
-                        <th>Tipo</th>
-                        <th>Custo Horário</th>
+                        <th class="sortable" data-column="pid">ID <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="name">Nome <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="role">Função <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="level">Nível <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="is_vacancy">Tipo <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="hourly_cost">Custo Horário <span class="material-icons sort-icon">arrow_upward</span></th>
                         <th>Ações</th>
                     </tr>
                 </thead>
@@ -116,8 +119,51 @@ export async function renderProfessionals(container) {
         </div>
     `;
 
+    // Add event listeners for sorting
+    container.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const column = th.dataset.column;
+            if (currentSortColumn === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            renderTableBody();
+            updateHeaderStyles();
+        });
+    });
+
     // Load Professionals
     await loadProfessionals();
+
+    function updateHeaderStyles() {
+        container.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.column === currentSortColumn) {
+                th.classList.add(currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
+    }
+
+    function sortData(data) {
+        return [...data].sort((a, b) => {
+            let valA = a[currentSortColumn];
+            let valB = b[currentSortColumn];
+
+            // Handle null/undefined
+            if (valA === null || valA === undefined) valA = '';
+            if (valB === null || valB === undefined) valB = '';
+
+            // Case insensitive string comparison
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
 
     // Modal controls
     const modal = document.getElementById('modal-prof');
@@ -255,7 +301,7 @@ export async function renderProfessionals(container) {
 
             modal.classList.remove('active');
             clearForm();
-            loadProfessionals();
+            await loadProfessionals();
         } else {
             alert('Por favor, preencha todos os campos obrigatórios (ID, Nome, Função, Nível)');
         }
@@ -271,9 +317,15 @@ export async function renderProfessionals(container) {
     }
 
     async function loadProfessionals() {
-        const profs = await api.get('/professionals/');
+        professionalsData = await api.get('/professionals/');
+        renderTableBody();
+        updateHeaderStyles();
+    }
+
+    function renderTableBody() {
+        const sortedProfs = sortData(professionalsData);
         const tbody = document.querySelector('#prof-table tbody');
-        tbody.innerHTML = profs.map(p => `
+        tbody.innerHTML = sortedProfs.map(p => `
             <tr>
                 <td>${escapeHtml(p.pid || '-')}</td>
                 <td>${escapeHtml(p.name)}</td>
@@ -327,7 +379,7 @@ export async function renderProfessionals(container) {
     window.deleteProfessional = async (id, name) => {
         if (confirm(`Tem certeza que deseja excluir "${name}"?`)) {
             await api.delete(`/professionals/${id}`);
-            loadProfessionals();
+            await loadProfessionals();
         }
     };
 }

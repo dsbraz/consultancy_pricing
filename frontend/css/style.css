@@ -287,6 +287,39 @@ th {
     font-size: 0.875rem;
     letter-spacing: 0.1px;
     color: var(--md-sys-color-on-surface-variant);
+    transition: background-color 0.2s;
+}
+
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.sortable:hover {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.sort-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+th.sorted-asc .sort-icon,
+th.sorted-desc .sort-icon {
+    opacity: 1;
+}
+
+th.sorted-asc .sort-icon {
+    transform: rotate(0deg);
+}
+
+th.sorted-desc .sort-icon {
+    transform: rotate(180deg);
 }
 
 tr:last-child td {
