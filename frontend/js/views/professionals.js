@@ -8,10 +8,16 @@ export async function renderProfessionals(container) {
         <div class="card">
             <div class="header-actions">
                 <h3>Lista de Profissionais</h3>
-                <button id="btn-new-prof" class="btn btn-primary">
-                    <span class="material-icons" style="margin-right: 0.5rem;">add</span>
-                    Novo Profissional
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-import-csv" class="btn" style="background: var(--color-secondary);">
+                        <span class="material-icons" style="margin-right: 0.5rem;">upload_file</span>
+                        Importar CSV
+                    </button>
+                    <button id="btn-new-prof" class="btn btn-primary">
+                        <span class="material-icons" style="margin-right: 0.5rem;">add</span>
+                        Novo Profissional
+                    </button>
+                </div>
             </div>
             <table class="table" id="prof-table">
                 <thead>
@@ -26,6 +32,40 @@ export async function renderProfessionals(container) {
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+
+        <!-- Modal for CSV Import -->
+        <div id="modal-import-csv" class="modal-overlay">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3>Importar Profissionais via CSV</h3>
+                    <button class="modal-close" id="btn-close-modal-import">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Arquivo CSV</label>
+                        <input type="file" id="csv-file-input" accept=".csv">
+                        <small style="display: block; margin-top: 0.5rem; color: var(--color-text-secondary);">
+                            Formato esperado: name,role,level,is_vacancy,hourly_cost
+                            <br>
+                            <a href="professionals_example.csv" download style="color: var(--color-primary);">
+                                📥 Baixar arquivo de exemplo
+                            </a>
+                        </small>
+                    </div>
+                    <div id="import-results" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 8px; background: var(--color-surface-variant);">
+                        <h4 style="margin-top: 0;">Resultados da Importação</h4>
+                        <div id="import-stats"></div>
+                        <div id="import-errors" style="margin-top: 0.5rem;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btn-cancel-import" class="btn">Cancelar</button>
+                    <button id="btn-upload-csv" class="btn btn-primary">Importar</button>
+                </div>
+            </div>
         </div>
 
         <!-- Modal for Create/Edit Professional -->
@@ -101,6 +141,92 @@ export async function renderProfessionals(container) {
             clearForm();
         }
     };
+
+    // CSV Import Modal controls
+    const importModal = document.getElementById('modal-import-csv');
+    const importResults = document.getElementById('import-results');
+    const csvFileInput = document.getElementById('csv-file-input');
+
+    document.getElementById('btn-import-csv').onclick = () => {
+        importModal.classList.add('active');
+        importResults.style.display = 'none';
+        csvFileInput.value = '';
+    };
+
+    document.getElementById('btn-close-modal-import').onclick = () => {
+        importModal.classList.remove('active');
+    };
+
+    document.getElementById('btn-cancel-import').onclick = () => {
+        importModal.classList.remove('active');
+    };
+
+    importModal.onclick = (e) => {
+        if (e.target === importModal) {
+            importModal.classList.remove('active');
+        }
+    };
+
+    // Upload CSV
+    document.getElementById('btn-upload-csv').onclick = async () => {
+        const file = csvFileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo CSV');
+            return;
+        }
+
+        if (!file.name.endsWith('.csv')) {
+            alert('Por favor, selecione um arquivo CSV válido');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/professionals/import-csv', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.detail || 'Erro ao importar CSV');
+            }
+
+            // Show results
+            importResults.style.display = 'block';
+            const statsHtml = `
+                <p style="margin: 0.25rem 0;">✅ <strong>${result.created}</strong> profissionais criados</p>
+                <p style="margin: 0.25rem 0;">🔄 <strong>${result.updated}</strong> profissionais atualizados</p>
+                ${result.errors > 0 ? `<p style="margin: 0.25rem 0; color: var(--color-error);">❌ <strong>${result.errors}</strong> erros</p>` : ''}
+            `;
+            document.getElementById('import-stats').innerHTML = statsHtml;
+
+            // Show errors if any
+            const errorsDiv = document.getElementById('import-errors');
+            if (result.error_details && result.error_details.length > 0) {
+                errorsDiv.innerHTML = `
+                    <details style="margin-top: 0.5rem;">
+                        <summary style="cursor: pointer; color: var(--color-error);">Ver detalhes dos erros</summary>
+                        <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                            ${result.error_details.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                    </details>
+                `;
+            } else {
+                errorsDiv.innerHTML = '';
+            }
+
+            // Reload professionals list
+            await loadProfessionals();
+
+        } catch (error) {
+            alert(`Erro ao importar CSV: ${error.message}`);
+        }
+    };
+
 
     // Save (Create or Update)
     document.getElementById('btn-save-prof').onclick = async () => {
