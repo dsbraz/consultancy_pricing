@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List
+import uuid
 
 from app.database import get_db
 from app.models import models
@@ -179,6 +180,7 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
             if current < needed:
                 for i in range(needed - current):
                     new_vacancy = models.Professional(
+                        pid=f"VAC-{uuid.uuid4().hex[:8].upper()}",
                         name=f"Vaga {item.role} {item.level} {i+1}",
                         role=item.role,
                         level=item.level,

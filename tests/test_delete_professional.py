@@ -11,7 +11,8 @@ def test_delete_professional():
         "name": f"Test Prof Delete 1 {timestamp}",
         "role": "Developer",
         "level": "Senior",
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
+        "pid": f"DEL001_{timestamp}"
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof1_data)
     prof1_id = resp.json()["id"]
@@ -21,7 +22,8 @@ def test_delete_professional():
         "name": f"Test Prof Delete 2 {timestamp}",
         "role": "Designer",
         "level": "Junior",
-        "hourly_cost": 80.0
+        "hourly_cost": 80.0,
+        "pid": f"DEL002_{timestamp}"
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof2_data)
     prof2_id = resp.json()["id"]

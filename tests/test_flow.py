@@ -41,7 +41,7 @@ def test_full_flow():
         "level": "Senior",
         "is_vacancy": False,
         "hourly_cost": 100.0,
-        "professional_id": "DEV001"
+        "pid": "DEV001"
     }).json()
     
     prof2 = client.post("/professionals/", json={
@@ -50,7 +50,7 @@ def test_full_flow():
         "level": "Senior",
         "is_vacancy": False,
         "hourly_cost": 150.0,
-        "professional_id": "PM001"
+        "pid": "PM001"
     }).json()
     
     # 3. Create Offer
@@ -58,10 +58,11 @@ def test_full_flow():
     offer = client.post("/offers/", json={
         "name": "Standard Squad",
         "items": [
-            {"role": "Developer", "level": "Senior", "quantity": 2},
-            {"role": "Project Manager", "level": "Senior", "quantity": 1}
+            {"role": "Developer", "level": "Senior", "quantity": 2, "professional_id": prof1['id']},
+            {"role": "Project Manager", "level": "Senior", "quantity": 1, "professional_id": prof2['id']}
         ]
     }).json()
+    print("Offer Response:", offer)
     
     # 4. Create Project
     print("Creating Project...")
@@ -72,6 +73,7 @@ def test_full_flow():
         "tax_rate": 10.0, # 10%
         "margin_rate": 20.0 # 20%
     }).json()
+    print("Project Response:", project)
     
     # 5. Apply Offer
     print("Applying Offer...")
