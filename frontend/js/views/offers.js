@@ -40,21 +40,26 @@ export async function renderOffers(container) {
                         <input type="text" id="off-name">
                     </div>
                     <div class="form-group">
-                        <label>Adicionar Profissional</label>
-                        <div style="margin-bottom: 0.5rem;">
-                            <select id="off-prof-select" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
-                                <option value="">-- Selecionar Profissional --</option>
-                                ${professionals.map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
-                            </select>
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-bottom: 0.5rem;">
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Adicionar Profissional</label>
+                                <select id="off-prof-select" style="width: 100%; padding: 0.5rem;">
+                                    <option value="">-- Selecionar Profissional --</option>
+                                    ${professionals.map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div style="width: 120px;">
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Alocação (%)</label>
+                                <input type="number" id="off-alloc" value="100" style="width: 100%; padding: 0.5rem;" placeholder="100">
+                            </div>
                         </div>
                         <div id="prof-info" style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f3f4f6; border-radius: 0.25rem; display: none;">
                             <small style="color: #374151;"><strong>Função/Nível:</strong> <span id="prof-role-level"></span></small>
                         </div>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <input type="number" id="off-alloc" value="100" style="width: 100px;" placeholder="Alocação %">
-                            <button id="btn-add-item" class="btn btn-primary">Adicionar à Oferta</button>
+                        <div style="margin-bottom: 0.5rem;">
+                            <button id="btn-add-item" class="btn btn-primary" style="width: 100%;">Adicionar à Oferta</button>
                         </div>
-                        <small style="color: #6b7280;">Selecione um profissional existente para adicionar à oferta.</small>
+                        <small style="color: #6b7280;">Selecione um profissional da comparação. A função e nível serão preenchidos automaticamente com base no profissional selecionado.</small>
                     </div>
                     <div id="off-items-list" style="min-height: 60px; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem; margin-bottom: 1rem;">
                         <small style="color: #6b7280;">Nenhum item adicionado ainda</small>
@@ -102,18 +107,30 @@ export async function renderOffers(container) {
         }
     };
 
-    // Show professional info when selected
-    document.getElementById('off-prof-select').onchange = (e) => {
-        const sel = e.target;
+    // Function to update professional info display
+    function updateProfessionalInfo() {
+        const sel = document.getElementById('off-prof-select');
         const opt = sel.options[sel.selectedIndex];
         const profInfo = document.getElementById('prof-info');
         const profRoleLevel = document.getElementById('prof-role-level');
+        const alloc = document.getElementById('off-alloc').value || '100';
 
         if (opt.value) {
-            profRoleLevel.textContent = `${opt.dataset.role} ${opt.dataset.level}`;
+            profRoleLevel.textContent = `${opt.dataset.role} ${opt.dataset.level} - ${alloc}% alocação`;
             profInfo.style.display = 'block';
         } else {
             profInfo.style.display = 'none';
+        }
+    }
+
+    // Show professional info when selected
+    document.getElementById('off-prof-select').onchange = updateProfessionalInfo;
+
+    // Update info when allocation percentage changes
+    document.getElementById('off-alloc').oninput = () => {
+        const sel = document.getElementById('off-prof-select');
+        if (sel.value) {
+            updateProfessionalInfo();
         }
     };
 
