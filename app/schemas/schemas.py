@@ -120,6 +120,5 @@ class ProjectPricing(BaseModel):
     final_margin_percent: float  # (Final - Cost) / Cost * 100
     monthly_breakdown: dict = {}
     weekly_breakdown: dict = {}
-
     class Config:
         from_attributes = True # Updated from orm_mode

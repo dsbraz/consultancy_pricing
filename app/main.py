@@ -19,7 +19,6 @@ app.add_middleware(
 )
 
 app.include_router(professionals.router, tags=["Professionals"])
-# app.include_router(pricelists.router, tags=["Price Lists"]) # Removed
 app.include_router(templates.router, tags=["Templates"])
 app.include_router(projects.router, tags=["Projects"])
 
