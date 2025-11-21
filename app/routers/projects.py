@@ -166,7 +166,6 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
             if prof:
                 professionals_to_allocate.append(prof)
             # If specific professional not found, we could fallback or skip. 
-            # For now, let's skip to avoid errors, or maybe log a warning.
         else:
             # Generic role/level requested - find vacancies
             vacancies = db.query(models.Professional).filter(

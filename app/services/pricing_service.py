@@ -59,7 +59,6 @@ class PricingService:
         total_margin = total_selling - total_cost
         
         # Calculate Tax: Selling * (tax_rate / 100)
-        # The user requested: "calcule a margem sem incluir os impostos... acrescente os impostos ao projeto"
         # This implies Tax is added ON TOP of the Selling Price.
         tax_rate_decimal = project.tax_rate / 100.0
         total_tax = total_selling * tax_rate_decimal

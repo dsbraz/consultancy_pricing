@@ -67,17 +67,12 @@ def verify_allocation_percentage():
     assert len(allocations) == 1
     allocation = allocations[0]
     
-    # Check weekly hours
-    # Assuming standard week is 40h, 50% should be 20h
-    # Note: available_hours might be less if there are holidays, but let's check the logic
-    # The logic is min(40 * percentage/100, available_hours)
-    
+    # Check weekly hours    
     weeks = allocation["weekly_hours"]
     for week_num, week_data in weeks.items():
         hours_allocated = week_data["hours_allocated"]
         available_hours = week_data["available_hours"]
         
-        # User requirement: if week has 32h and 50%, it should be 16h.
         # Formula: available_hours * percentage
         expected_hours = available_hours * 0.5
         

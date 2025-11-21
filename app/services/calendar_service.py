@@ -30,49 +30,12 @@ class CalendarService:
         result = {}
         current_date = start_date
         
-        # Simple iteration for months. 
-        # Note: This logic assumes we take the whole month if the project covers it.
-        # The user requirement said "starting second week of Jan". 
-        # So we need to be precise about the start date.
-        
-        # Let's iterate day by day or calculate per month fraction?
-        # Requirement: "starting second week of Jan... for 3 months".
-        # This implies a duration.
-        # Let's calculate the exact range.
-        
-        # Calculate end date roughly
-        # Actually, usually in consultancy, you bill by month. 
-        # If it starts mid-month, you bill the remaining hours of that month.
-        
-        # Let's iterate through the months involved.
-        
         for _ in range(duration_months):
             year = current_date.year
             month = current_date.month
             
-            # If it's the first month, we might start late.
-            # But the function get_business_hours_in_month calculates the WHOLE month.
-            # We need a way to calculate from a specific day if it's the start.
-            
-            # Let's refine: We need to count business days from start_date until end of that month,
-            # then full months, then potentially partial last month?
-            # The requirement says "3 months". Usually means 3 full calendar months or 90 days?
-            # "starting second week of Jan" -> Jan (partial), Feb (full), Mar (full)? Or Jan, Feb, Mar (partial)?
-            # Let's assume "3 months" means covering the period of 3 months.
-            # Simplification: We will calculate business hours for the specific months involved.
-            # If start_date is 2023-01-10 and duration is 3 months, we cover Jan, Feb, Mar.
-            
-            # Let's just return the total hours for the full months for now to keep it simple, 
-            # OR better: handle the start date correctly.
-            
-            # Let's calculate business days remaining in the current month from current_date
             _, num_days_in_month = calendar.monthrange(year, month)
             
-            # If we are at the start of the loop, current_date is the project start date.
-            # We count from current_date.day to num_days_in_month.
-            
-            # Wait, if duration is "3 months", does it mean 3 calendar months?
-            # Let's assume yes.
             
             days_in_month = 0
             for day in range(current_date.day, num_days_in_month + 1):
@@ -81,7 +44,6 @@ class CalendarService:
             
             result[(year, month)] = days_in_month * hours_per_day
             
-            # Move to first day of next month
             if month == 12:
                 current_date = date(year + 1, 1, 1)
             else:

@@ -10,8 +10,6 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-# --- Profiles ---
-# --- Professionals ---
 @router.post("/professionals/", response_model=schemas.Professional)
 def create_professional(professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)):
     db_professional = models.Professional(
