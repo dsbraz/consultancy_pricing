@@ -411,6 +411,7 @@ export async function renderProjects(container) {
         html += '<th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Função/Nível</th>';
         html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; min-width: 100px;">Custo (R$/h)</th>';
         html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #fef3c7; min-width: 100px;">Taxa de Venda (R$/h)</th>';
+        html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #dcfce7; min-width: 100px;">Margem (%)</th>';
 
         data.weeks.forEach(week => {
             const weekStart = new Date(week.week_start).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
@@ -439,11 +440,18 @@ export async function renderProjects(container) {
                 <input type="number" 
                     class="alloc-input-selling" 
                     data-allocation-id="${alloc.allocation_id}"
+                    data-cost="${alloc.professional.hourly_cost}"
                     value="${alloc.selling_hourly_rate.toFixed(2)}" 
                     min="0"
                     step="1"
                     style="width: 100%; padding: 0.25rem; text-align: center; border: 1px solid #d1d5db; border-radius: 0.25rem;">
             </td>`;
+
+            // Margin column (calculated from cost and selling rate)
+            const marginPercent = alloc.selling_hourly_rate > 0
+                ? ((alloc.selling_hourly_rate - alloc.professional.hourly_cost) / alloc.selling_hourly_rate * 100).toFixed(2)
+                : '0.00';
+            html += `<td class="margin-cell" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; background: #dcfce7; font-weight: 600;">${marginPercent}%</td>`;
 
             let totalHours = 0;
             data.weeks.forEach(week => {
@@ -501,6 +509,21 @@ export async function renderProjects(container) {
 
                 inputs.forEach(input => {
                     input.addEventListener('input', updateRowTotal);
+                });
+            }
+
+            // Add event listener for selling rate to update margin
+            const sellingInput = row.querySelector('.alloc-input-selling');
+            const marginCell = row.querySelector('.margin-cell');
+
+            if (sellingInput && marginCell) {
+                sellingInput.addEventListener('input', () => {
+                    const sellingRate = parseFloat(sellingInput.value) || 0;
+                    const cost = parseFloat(sellingInput.dataset.cost) || 0;
+                    const marginPercent = sellingRate > 0
+                        ? ((sellingRate - cost) / sellingRate * 100).toFixed(2)
+                        : '0.00';
+                    marginCell.textContent = `${marginPercent}%`;
                 });
             }
         });
