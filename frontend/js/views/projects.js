@@ -55,6 +55,10 @@ export async function renderProjects(container) {
             
             <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
                 <button id="btn-save-calc" class="btn btn-primary" style="display:none;">Salvar & Calcular</button>
+                <button id="btn-export-excel" class="btn" style="display:none;">
+                    <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">file_download</span>
+                    Exportar para Excel
+                </button>
             </div>
             
             <div id="price-result" style="display:none; margin-top: 1.5rem;">
@@ -330,6 +334,25 @@ export async function renderProjects(container) {
         }
     };
 
+    // Export to Excel
+    document.getElementById('btn-export-excel').onclick = async () => {
+        if (!currentProjectId) {
+            alert('Nenhum projeto selecionado.');
+            return;
+        }
+
+        try {
+            const project = await api.get(`/projects/${currentProjectId}`);
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `projeto_${project.name.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
+
+            await api.downloadBlob(`/projects/${currentProjectId}/export_excel`, filename);
+            alert('Excel exportado com sucesso!');
+        } catch (error) {
+            alert('Erro ao exportar: ' + error.message);
+        }
+    };
+
     // Add Professional Modal Logic
     const modalAddProf = document.getElementById('modal-add-prof');
 
@@ -415,6 +438,7 @@ export async function renderProjects(container) {
             allocationTableData = data;
             renderAllocationTable(data);
             document.getElementById('btn-save-calc').style.display = 'inline-block';
+            document.getElementById('btn-export-excel').style.display = 'inline-block';
         } catch (error) {
             console.error('Erro ao carregar tabela de alocação:', error);
         }

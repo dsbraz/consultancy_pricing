@@ -53,5 +53,27 @@ export const api = {
             throw new Error(errorMessage);
         }
         return response.json();
+    },
+
+    async downloadBlob(endpoint, filename) {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.detail || response.statusText;
+            throw new Error(errorMessage);
+        }
+        const blob = await response.blob();
+
+        // Criar link temporário para download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        // Limpar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
     }
 };

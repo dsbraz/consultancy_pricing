@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 import uuid
@@ -8,6 +9,7 @@ from app.models import models
 from app.schemas import schemas
 from app.services.pricing_service import PricingService
 from app.services.calendar_service import CalendarService
+from app.services.excel_service import ExcelExportService
 from datetime import datetime
 
 router = APIRouter()
@@ -464,3 +466,35 @@ def remove_professional_from_project(
         "allocation_id": allocation_id
     }
 
+
+@router.get("/projects/{project_id}/export_excel")
+def export_project_excel(project_id: int, db: Session = Depends(get_db)):
+    """
+    Exporta um projeto completo para arquivo Excel.
+    Retorna arquivo .xlsx com informações do projeto, resumo financeiro e tabela de alocação.
+    """
+    # Buscar projeto
+    project = db.query(models.Project).options(
+        joinedload(models.Project.allocations)
+        .joinedload(models.ProjectAllocation.professional),
+        joinedload(models.Project.allocations)
+        .joinedload(models.ProjectAllocation.weekly_allocations)
+    ).filter(models.Project.id == project_id).first()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    
+    # Gerar Excel
+    excel_service = ExcelExportService(db)
+    excel_file = excel_service.export_project_to_excel(project)
+    
+    # Criar nome do arquivo com timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"projeto_{project.name.replace(' ', '_')}_{timestamp}.xlsx"
+    
+    # Retornar como download
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
