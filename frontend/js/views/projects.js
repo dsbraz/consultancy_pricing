@@ -62,12 +62,12 @@ export async function renderProjects(container) {
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem Total</span>
+                                <span id="label-margin-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem Total</span>
                                 <span id="res-margin" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos Totais</span>
+                                <span id="label-tax-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos Totais</span>
                                 <span id="res-tax" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                         </div>
@@ -208,8 +208,9 @@ export async function renderProjects(container) {
                 name, start_date, duration_months, tax_rate, margin_rate
             });
 
-            // If this project is currently being viewed, reload the allocation table
+            // If this project is currently being viewed, reload the allocation table and update labels
             if (currentProjectId === editingProjectId) {
+                updateProjectLabels(margin_rate, tax_rate);
                 loadAllocationTable(currentProjectId);
             }
 
@@ -224,6 +225,7 @@ export async function renderProjects(container) {
             });
             currentProjectId = project.id;
             document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
+            updateProjectLabels(project.margin_rate, project.tax_rate);
             document.getElementById('proj-details').style.display = 'block';
 
             modalProject.classList.remove('active');
@@ -232,6 +234,13 @@ export async function renderProjects(container) {
             loadProjects();
         }
     };
+
+    function updateProjectLabels(margin, tax) {
+        const marginLabel = document.getElementById('label-margin-total');
+        const taxLabel = document.getElementById('label-tax-total');
+        if (marginLabel) marginLabel.textContent = `Margem Total (${margin}%)`;
+        if (taxLabel) taxLabel.textContent = `Impostos Totais (${tax}%)`;
+    }
 
     function clearProjectForm() {
         document.getElementById('proj-name').value = '';
@@ -529,6 +538,7 @@ export async function renderProjects(container) {
         const project = await api.get(`/projects/${id}`);
         currentProjectId = id;
         document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
+        updateProjectLabels(project.margin_rate, project.tax_rate);
         document.getElementById('proj-details').style.display = 'block';
         loadTemplatesSelect();
         loadAllocationTable(id);
