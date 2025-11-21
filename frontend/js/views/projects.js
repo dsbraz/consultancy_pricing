@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { formatCurrency } from '../utils.js';
 
 export async function renderProjects(container) {
     let currentProjectId = null;
@@ -208,9 +209,8 @@ export async function renderProjects(container) {
                 name, start_date, duration_months, tax_rate, margin_rate
             });
 
-            // If this project is currently being viewed, reload the allocation table and update labels
+            // If this project is currently being viewed, reload the allocation table
             if (currentProjectId === editingProjectId) {
-                updateProjectLabels(margin_rate, tax_rate);
                 loadAllocationTable(currentProjectId);
             }
 
@@ -225,7 +225,6 @@ export async function renderProjects(container) {
             });
             currentProjectId = project.id;
             document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
-            updateProjectLabels(project.margin_rate, project.tax_rate);
             document.getElementById('proj-details').style.display = 'block';
 
             modalProject.classList.remove('active');
@@ -234,13 +233,6 @@ export async function renderProjects(container) {
             loadProjects();
         }
     };
-
-    function updateProjectLabels(margin, tax) {
-        const marginLabel = document.getElementById('label-margin-total');
-        const taxLabel = document.getElementById('label-tax-total');
-        if (marginLabel) marginLabel.textContent = `Margem Total`;
-        if (taxLabel) taxLabel.textContent = `Impostos Totais`;
-    }
 
     function clearProjectForm() {
         document.getElementById('proj-name').value = '';
@@ -538,7 +530,6 @@ export async function renderProjects(container) {
         const project = await api.get(`/projects/${id}`);
         currentProjectId = id;
         document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
-        updateProjectLabels(project.margin_rate, project.tax_rate);
         document.getElementById('proj-details').style.display = 'block';
         loadOffersSelect();
         loadAllocationTable(id);
@@ -572,8 +563,4 @@ export async function renderProjects(container) {
             loadProjects();
         }
     };
-
-    function formatCurrency(val) {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    }
 }
