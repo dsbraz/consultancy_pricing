@@ -40,21 +40,21 @@ export async function renderOffers(container) {
                         <input type="text" id="off-name">
                     </div>
                     <div class="form-group">
-                        <label>Adicionar Item</label>
+                        <label>Adicionar Profissional</label>
                         <div style="margin-bottom: 0.5rem;">
                             <select id="off-prof-select" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
-                                <option value="">-- Selecionar Profissional Específico (Opcional) --</option>
+                                <option value="">-- Selecionar Profissional --</option>
                                 ${professionals.map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
                             </select>
                         </div>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <input type="text" id="off-role" placeholder="Função (ex: Desenvolvedor)" style="flex: 1;">
-                            <input type="text" id="off-level" placeholder="Nível (ex: Sênior)" style="flex: 1;">
-                            <input type="number" id="off-qty" value="1" style="width: 70px;" placeholder="Qtd">
-                            <input type="number" id="off-alloc" value="100" style="width: 80px;" placeholder="Aloc %">
-                            <button id="btn-add-item" class="btn">Adicionar</button>
+                        <div id="prof-info" style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f3f4f6; border-radius: 0.25rem; display: none;">
+                            <small style="color: #374151;"><strong>Função/Nível:</strong> <span id="prof-role-level"></span></small>
                         </div>
-                        <small style="color: #6b7280;">Se um profissional for selecionado, Função/Nível são preenchidos automaticamente.</small>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="number" id="off-alloc" value="100" style="width: 100px;" placeholder="Alocação %">
+                            <button id="btn-add-item" class="btn btn-primary">Adicionar à Oferta</button>
+                        </div>
+                        <small style="color: #6b7280;">Selecione um profissional existente para adicionar à oferta.</small>
                     </div>
                     <div id="off-items-list" style="min-height: 60px; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem; margin-bottom: 1rem;">
                         <small style="color: #6b7280;">Nenhum item adicionado ainda</small>
@@ -102,58 +102,52 @@ export async function renderOffers(container) {
         }
     };
 
-    // Auto-fill role/level when professional selected
+    // Show professional info when selected
     document.getElementById('off-prof-select').onchange = (e) => {
         const sel = e.target;
         const opt = sel.options[sel.selectedIndex];
+        const profInfo = document.getElementById('prof-info');
+        const profRoleLevel = document.getElementById('prof-role-level');
+
         if (opt.value) {
-            document.getElementById('off-role').value = opt.dataset.role;
-            document.getElementById('off-level').value = opt.dataset.level;
-            document.getElementById('off-qty').value = '1';
-            document.getElementById('off-qty').disabled = true; // Can only add 1 specific person
-            document.getElementById('off-alloc').value = '100';
+            profRoleLevel.textContent = `${opt.dataset.role} ${opt.dataset.level}`;
+            profInfo.style.display = 'block';
         } else {
-            document.getElementById('off-role').value = '';
-            document.getElementById('off-level').value = '';
-            document.getElementById('off-qty').disabled = false;
+            profInfo.style.display = 'none';
         }
     };
 
     // Add item to current list
     document.getElementById('btn-add-item').onclick = () => {
         const profId = document.getElementById('off-prof-select').value;
-        const role = document.getElementById('off-role').value;
-        const level = document.getElementById('off-level').value;
-        let qty = parseInt(document.getElementById('off-qty').value);
-        let alloc = parseFloat(document.getElementById('off-alloc').value) || 100;
+        const alloc = parseFloat(document.getElementById('off-alloc').value) || 100;
 
-        if (profId) {
-            qty = 1; // Force 1 for specific professional
+        if (!profId) {
+            alert('Por favor, selecione um profissional');
+            return;
         }
 
-        if (role && level && qty > 0) {
-            const profName = profId ? professionals.find(p => p.id == profId)?.name : null;
-
-            currentItems.push({
-                role,
-                level,
-                quantity: qty,
-                allocation_percentage: alloc,
-                professional_id: profId ? parseInt(profId) : null,
-                professional_name: profName // For display only
-            });
-            renderItemsList();
-
-            // Reset form
-            document.getElementById('off-prof-select').value = '';
-            document.getElementById('off-role').value = '';
-            document.getElementById('off-level').value = '';
-            document.getElementById('off-qty').value = '1';
-            document.getElementById('off-alloc').value = '100';
-            document.getElementById('off-qty').disabled = false;
-        } else {
-            alert('Por favor, preencha função, nível e quantidade');
+        const professional = professionals.find(p => p.id == profId);
+        if (!professional) {
+            alert('Profissional não encontrado');
+            return;
         }
+
+        currentItems.push({
+            role: professional.role,
+            level: professional.level,
+            quantity: 1,
+            allocation_percentage: alloc,
+            professional_id: parseInt(profId),
+            professional_name: professional.name
+        });
+
+        renderItemsList();
+
+        // Reset form
+        document.getElementById('off-prof-select').value = '';
+        document.getElementById('off-alloc').value = '100';
+        document.getElementById('prof-info').style.display = 'none';
     };
 
     function renderItemsList() {
@@ -238,11 +232,8 @@ export async function renderOffers(container) {
         currentItems = [];
         document.getElementById('off-name').value = '';
         document.getElementById('off-prof-select').value = '';
-        document.getElementById('off-role').value = '';
-        document.getElementById('off-level').value = '';
-        document.getElementById('off-qty').value = '1';
         document.getElementById('off-alloc').value = '100';
-        document.getElementById('off-qty').disabled = false;
+        document.getElementById('prof-info').style.display = 'none';
         renderItemsList();
     }
 

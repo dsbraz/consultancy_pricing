@@ -1,26 +1,40 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, Field
 from datetime import date
 
 # Professional Schemas
 class ProfessionalBase(BaseModel):
-    pid: str
-    name: str
-    role: str
-    level: str
+    pid: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    role: str = Field(..., min_length=1)
+    level: str = Field(..., min_length=1)
     is_vacancy: bool = False
-    hourly_cost: float = 0.0
+    hourly_cost: float = Field(default=0.0, ge=0.0)
+
+    @field_validator('pid', 'name', 'role', 'level')
+    @classmethod
+    def validate_non_empty_string(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip()
 
 class ProfessionalCreate(ProfessionalBase):
     pass
 
 class ProfessionalUpdate(BaseModel):
-    pid: Optional[str] = None
-    name: Optional[str] = None
-    role: Optional[str] = None
-    level: Optional[str] = None
+    pid: Optional[str] = Field(None, min_length=1)
+    name: Optional[str] = Field(None, min_length=1)
+    role: Optional[str] = Field(None, min_length=1)
+    level: Optional[str] = Field(None, min_length=1)
     is_vacancy: Optional[bool] = None
-    hourly_cost: Optional[float] = None
+    hourly_cost: Optional[float] = Field(None, ge=0.0)
+
+    @field_validator('pid', 'name', 'role', 'level')
+    @classmethod
+    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip() if v else None
 
 class Professional(ProfessionalBase):
     id: int
@@ -29,11 +43,18 @@ class Professional(ProfessionalBase):
 
 # Offer Schemas
 class OfferItemBase(BaseModel):
-    role: Optional[str] = None
-    level: Optional[str] = None
-    quantity: int = 1
-    allocation_percentage: float = 100.0
-    professional_id: Optional[int] = None
+    role: str = Field(..., min_length=1)
+    level: str = Field(..., min_length=1)
+    quantity: int = Field(default=1, ge=1)
+    allocation_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
+    professional_id: int
+
+    @field_validator('role', 'level')
+    @classmethod
+    def validate_non_empty_string(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip()
 
 class OfferItemCreate(OfferItemBase):
     pass
@@ -45,14 +66,28 @@ class OfferItem(OfferItemBase):
         orm_mode = True
 
 class OfferBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
+
+    @field_validator('name')
+    @classmethod
+    def validate_non_empty_string(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip()
 
 class OfferCreate(OfferBase):
     items: List[OfferItemCreate] = []
 
 class OfferUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1)
     items: Optional[List[OfferItemCreate]] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip() if v else None
 
 class Offer(OfferBase):
     id: int
@@ -64,8 +99,8 @@ class Offer(OfferBase):
 class WeeklyAllocationBase(BaseModel):
     week_number: int
     week_start_date: date
-    hours_allocated: float = 0.0
-    available_hours: float
+    hours_allocated: float = Field(default=0.0, ge=0.0)
+    available_hours: float = Field(..., ge=0.0)
 
 class WeeklyAllocationCreate(WeeklyAllocationBase):
     pass
@@ -77,7 +112,7 @@ class WeeklyAllocation(WeeklyAllocationBase):
 
 class ProjectAllocationBase(BaseModel):
     professional_id: int
-    selling_hourly_rate: float = 0.0
+    selling_hourly_rate: float = Field(default=0.0, ge=0.0)
 
 class ProjectAllocationCreate(ProjectAllocationBase):
     weekly_allocations: List[WeeklyAllocationCreate] = []
@@ -90,21 +125,35 @@ class ProjectAllocation(ProjectAllocationBase):
         from_attributes = True
 
 class ProjectBase(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
     start_date: date
-    duration_months: int
-    tax_rate: float
-    margin_rate: float
+    duration_months: int = Field(..., ge=1)
+    tax_rate: float = Field(..., ge=0.0, le=100.0)
+    margin_rate: float = Field(..., ge=0.0, le=100.0)
+
+    @field_validator('name')
+    @classmethod
+    def validate_non_empty_string(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip()
 
 class ProjectCreate(ProjectBase):
     allocations: List[ProjectAllocationCreate] = []
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1)
     start_date: Optional[date] = None
-    duration_months: Optional[int] = None
-    tax_rate: Optional[float] = None
-    margin_rate: Optional[float] = None
+    duration_months: Optional[int] = Field(None, ge=1)
+    tax_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
+    margin_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
+
+    @field_validator('name')
+    @classmethod
+    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+        return v.strip() if v else None
 
 class Project(ProjectBase):
     id: int
