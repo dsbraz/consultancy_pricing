@@ -28,25 +28,26 @@ def make_request(method, endpoint, data=None, params=None):
         print(f"HTTP Error {e.code}: {e.read().decode('utf-8')}")
         raise
 
-def test_template_flow():
-    print("Starting Template Verification Flow...")
+def test_offer_flow():
+    print("Starting Offer Verification Flow...")
     
     # 1. Create Specific Professional
     print("\n1. Creating Specific Professional...")
     prof_data = {
-        "name": "Template Specialist",
+        "name": "Offer Specialist",
         "role": "Architect",
         "level": "Principal",
-        "hourly_cost": 200.0
+        "hourly_cost": 200.0,
+        "professional_id": "SPEC001"
     }
     prof = make_request('POST', '/professionals/', data=prof_data)
     prof_id = prof["id"]
     print(f"Created professional: {prof['name']} (ID: {prof_id})")
     
-    # 2. Create Template with Specific Professional
-    print("\n2. Creating Template with Specific Professional...")
-    tpl_data = {
-        "name": "Specialist Team",
+    # 2. Create Offer with Specific Professional
+    print("\n2. Creating Offer with Specific Professional...")
+    off_data = {
+        "name": "Specialist Team Offer",
         "items": [
             {
                 "role": "Architect",
@@ -62,14 +63,14 @@ def test_template_flow():
             }
         ]
     }
-    tpl = make_request('POST', '/templates/', data=tpl_data)
-    tpl_id = tpl["id"]
-    print(f"Created template: {tpl['name']} (ID: {tpl_id})")
+    off = make_request('POST', '/offers/', data=off_data)
+    off_id = off["id"]
+    print(f"Created offer: {off['name']} (ID: {off_id})")
     
     # 3. Create Project
     print("\n3. Creating Project...")
     proj_data = {
-        "name": "Template Test Project",
+        "name": "Offer Test Project",
         "start_date": date.today().isoformat(),
         "duration_months": 2,
         "tax_rate": 10.0,
@@ -80,10 +81,10 @@ def test_template_flow():
     proj_id = proj["id"]
     print(f"Created project: {proj['name']} (ID: {proj_id})")
     
-    # 4. Apply Template
-    print("\n4. Applying Template...")
-    res = make_request('POST', f'/projects/{proj_id}/apply_template/{tpl_id}')
-    print(f"Template applied. Allocations: {res['allocations']}")
+    # 4. Apply Offer
+    print("\n4. Applying Offer...")
+    res = make_request('POST', f'/projects/{proj_id}/apply_offer/{off_id}')
+    print(f"Offer applied. Allocations: {res['allocations']}")
     
     # 5. Verify Allocations
     print("\n5. Verifying Allocations...")
@@ -112,11 +113,11 @@ def test_template_flow():
     assert found_specialist, "Specific professional not found in allocations"
     assert found_vacancy, "Vacancy not found in allocations"
     
-    print("\nTemplate verification passed successfully!")
+    print("\nOffer verification passed successfully!")
 
 if __name__ == "__main__":
     try:
-        test_template_flow()
+        test_offer_flow()
     except AssertionError as e:
         print(f"Test failed: {e}")
     except Exception as e:

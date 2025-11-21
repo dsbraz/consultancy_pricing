@@ -15,6 +15,7 @@ router = APIRouter()
 @router.post("/professionals/", response_model=schemas.Professional)
 def create_professional(professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)):
     db_professional = models.Professional(
+        pid=professional.pid,
         name=professional.name,
         role=professional.role,
         level=professional.level,
@@ -60,8 +61,9 @@ def delete_professional(professional_id: int, db: Session = Depends(get_db)):
 async def import_professionals_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Import professionals from CSV file.
-    Expected CSV format: name,role,level,is_vacancy,hourly_cost
-    If a professional with the same name exists, it will be updated.
+    Import professionals from CSV file.
+    Expected CSV format: pid,name,role,level,is_vacancy,hourly_cost
+    If a professional with the same pid exists, it will be updated.
     Otherwise, a new professional will be created.
     """
     if not file.filename.endswith('.csv'):
@@ -80,12 +82,13 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
     for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 to account for header
         try:
             # Validate required fields
-            if not row.get('name') or not row.get('role') or not row.get('level'):
-                errors.append(f"Linha {row_num}: Campos obrigatórios faltando (name, role, level)")
+            if not row.get('pid') or not row.get('name') or not row.get('role') or not row.get('level'):
+                errors.append(f"Linha {row_num}: Campos obrigatórios faltando (pid, name, role, level)")
                 error_count += 1
                 continue
             
             # Parse fields
+            pid = row['pid'].strip()
             name = row['name'].strip()
             role = row['role'].strip()
             level = row['level'].strip()
@@ -100,13 +103,14 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             except ValueError:
                 hourly_cost = 0.0
             
-            # Check if professional exists (by name)
+            # Check if professional exists (by pid)
             existing_prof = db.query(models.Professional).filter(
-                models.Professional.name == name
+                models.Professional.pid == pid
             ).first()
             
             if existing_prof:
                 # Update existing professional
+                existing_prof.name = name
                 existing_prof.role = role
                 existing_prof.level = level
                 existing_prof.is_vacancy = is_vacancy
@@ -115,6 +119,7 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             else:
                 # Create new professional
                 new_prof = models.Professional(
+                    pid=pid,
                     name=name,
                     role=role,
                     level=level,

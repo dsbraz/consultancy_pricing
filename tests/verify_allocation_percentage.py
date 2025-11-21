@@ -11,16 +11,17 @@ def verify_allocation_percentage():
         "name": f"Test Prof Percentage {timestamp}",
         "role": "Developer",
         "level": "Senior",
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
+        "professional_id": f"PROF{timestamp}"
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     assert resp.status_code == 200
     prof_id = resp.json()["id"]
     print(f"Created professional with ID: {prof_id}")
 
-    # 2. Create a template with 50% allocation
-    template_data = {
-        "name": f"Half Time Template {timestamp}",
+    # 2. Create an offer with 50% allocation
+    offer_data = {
+        "name": f"Half Time Offer {timestamp}",
         "items": [
             {
                 "role": "Developer",
@@ -31,12 +32,12 @@ def verify_allocation_percentage():
             }
         ]
     }
-    resp = requests.post(f"{BASE_URL}/templates/", json=template_data)
+    resp = requests.post(f"{BASE_URL}/offers/", json=offer_data)
     if resp.status_code != 200:
-        print(f"Create template failed: {resp.text}")
+        print(f"Create offer failed: {resp.text}")
     assert resp.status_code == 200
-    template_id = resp.json()["id"]
-    print(f"Created template with ID: {template_id}")
+    offer_id = resp.json()["id"]
+    print(f"Created offer with ID: {offer_id}")
 
     # 3. Create a project
     project_data = {
@@ -51,10 +52,10 @@ def verify_allocation_percentage():
     project_id = resp.json()["id"]
     print(f"Created project with ID: {project_id}")
 
-    # 4. Apply template
-    resp = requests.post(f"{BASE_URL}/projects/{project_id}/apply_template/{template_id}")
+    # 4. Apply offer
+    resp = requests.post(f"{BASE_URL}/projects/{project_id}/apply_offer/{offer_id}")
     assert resp.status_code == 200
-    print("Applied template")
+    print("Applied offer")
 
     # 5. Get allocation table
     resp = requests.get(f"{BASE_URL}/projects/{project_id}/allocation_table")

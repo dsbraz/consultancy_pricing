@@ -22,6 +22,7 @@ export async function renderProfessionals(container) {
             <table class="table" id="prof-table">
                 <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Nome</th>
                         <th>Função</th>
                         <th>Nível</th>
@@ -48,7 +49,7 @@ export async function renderProfessionals(container) {
                         <label>Arquivo CSV</label>
                         <input type="file" id="csv-file-input" accept=".csv">
                         <small style="display: block; margin-top: 0.5rem; color: var(--color-text-secondary);">
-                            Formato esperado: name,role,level,is_vacancy,hourly_cost
+                            Formato esperado: pid,name,role,level,is_vacancy,hourly_cost
                             <br>
                             <a href="professionals_example.csv" download style="color: var(--color-primary);">
                                 📥 Baixar arquivo de exemplo
@@ -78,6 +79,10 @@ export async function renderProfessionals(container) {
                     </button>
                 </div>
                 <div class="modal-body">
+                    <div class="form-group">
+                        <label>ID</label>
+                        <input type="text" id="prof-id" placeholder="ex: PROF001">
+                    </div>
                     <div class="form-group">
                         <label>Nome</label>
                         <input type="text" id="prof-name">
@@ -230,31 +235,33 @@ export async function renderProfessionals(container) {
 
     // Save (Create or Update)
     document.getElementById('btn-save-prof').onclick = async () => {
+        const pid = document.getElementById('prof-id').value;
         const name = document.getElementById('prof-name').value;
         const role = document.getElementById('prof-role').value;
         const level = document.getElementById('prof-level').value;
         const is_vacancy = document.getElementById('prof-type').value === 'true';
         const hourly_cost = parseFloat(document.getElementById('prof-cost').value);
 
-        if (name && role && level) {
+        if (pid && name && role && level) {
             if (editingId) {
                 // Update
-                await api.put(`/professionals/${editingId}`, { name, role, level, is_vacancy, hourly_cost });
+                await api.put(`/professionals/${editingId}`, { pid, name, role, level, is_vacancy, hourly_cost });
                 editingId = null;
             } else {
                 // Create
-                await api.post('/professionals/', { name, role, level, is_vacancy, hourly_cost });
+                await api.post('/professionals/', { pid, name, role, level, is_vacancy, hourly_cost });
             }
 
             modal.classList.remove('active');
             clearForm();
             loadProfessionals();
         } else {
-            alert('Por favor, preencha todos os campos obrigatórios (Nome, Função, Nível)');
+            alert('Por favor, preencha todos os campos obrigatórios (ID, Nome, Função, Nível)');
         }
     };
 
     function clearForm() {
+        document.getElementById('prof-id').value = '';
         document.getElementById('prof-name').value = '';
         document.getElementById('prof-role').value = '';
         document.getElementById('prof-level').value = '';
@@ -267,6 +274,7 @@ export async function renderProfessionals(container) {
         const tbody = document.querySelector('#prof-table tbody');
         tbody.innerHTML = profs.map(p => `
             <tr>
+                <td>${p.pid || '-'}</td>
                 <td>${p.name}</td>
                 <td>${p.role}</td>
                 <td>${p.level}</td>
@@ -289,6 +297,7 @@ export async function renderProfessionals(container) {
             document.getElementById('modal-prof-title').textContent = 'Editar Profissional';
             document.getElementById('btn-save-prof').textContent = 'Atualizar';
 
+            document.getElementById('prof-id').value = prof.pid || '';
             document.getElementById('prof-name').value = prof.name;
             document.getElementById('prof-role').value = prof.role;
             document.getElementById('prof-level').value = prof.level;

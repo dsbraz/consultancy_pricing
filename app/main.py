@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import professionals, projects, templates
+from app.routers import professionals, projects, offers
 import os
 
 # Create tables
@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(professionals.router, tags=["Professionals"])
-app.include_router(templates.router, tags=["Templates"])
+app.include_router(offers.router, tags=["Offers"])
 app.include_router(projects.router, tags=["Projects"])
 
 # Mount static files

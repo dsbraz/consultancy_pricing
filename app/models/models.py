@@ -6,6 +6,7 @@ class Professional(Base):
     __tablename__ = "professionals"
 
     id = Column(Integer, primary_key=True, index=True)
+    pid = Column(String, unique=True, index=True)
     name = Column(String, index=True)
     role = Column(String)
     level = Column(String)
@@ -14,26 +15,26 @@ class Professional(Base):
 
     project_allocations = relationship("ProjectAllocation", back_populates="professional")
 
-class Template(Base):
-    __tablename__ = "templates"
+class Offer(Base):
+    __tablename__ = "offers"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
 
-    items = relationship("TemplateItem", back_populates="template")
+    items = relationship("OfferItem", back_populates="offer")
 
-class TemplateItem(Base):
-    __tablename__ = "template_items"
+class OfferItem(Base):
+    __tablename__ = "offer_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    template_id = Column(Integer, ForeignKey("templates.id"))
+    offer_id = Column(Integer, ForeignKey("offers.id"))
     professional_id = Column(Integer, ForeignKey("professionals.id"), nullable=True)
     role = Column(String)
     level = Column(String)
     quantity = Column(Integer, default=1)
     allocation_percentage = Column(Float, default=100.0)
 
-    template = relationship("Template", back_populates="items")
+    offer = relationship("Offer", back_populates="items")
     professional = relationship("Professional")
 
 class Project(Base):

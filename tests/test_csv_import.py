@@ -8,10 +8,10 @@ def test_csv_import():
     """Test importing professionals from CSV file"""
     
     # Create a test CSV file
-    csv_content = """name,role,level,is_vacancy,hourly_cost
-Test Professional 1,Desenvolvedor,Sênior,false,150.00
-Test Professional 2,Designer,Pleno,false,120.00
-Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
+    csv_content = """pid,name,role,level,is_vacancy,hourly_cost
+PROF001,Test Professional 1,Desenvolvedor,Sênior,false,150.00
+PROF002,Test Professional 2,Designer,Pleno,false,120.00
+VAC001,Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
     
     csv_file_path = "/tmp/test_professionals.csv"
     with open(csv_file_path, 'w') as f:
@@ -49,13 +49,13 @@ Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
     print(f"Total professionals: {len(professionals)}")
     for prof in professionals:
         if prof['name'].startswith('Test'):
-            print(f"  - {prof['name']}: {prof['role']} ({prof['level']}) - R$ {prof['hourly_cost']}")
+            print(f"  - [{prof.get('pid')}] {prof['name']}: {prof['role']} ({prof['level']}) - R$ {prof['hourly_cost']}")
     
     # Test update by importing again with modified data
     print("\n\nTesting update functionality...")
-    csv_content_updated = """name,role,level,is_vacancy,hourly_cost
-Test Professional 1,Desenvolvedor,Pleno,false,130.00
-Test Professional 2,Designer,Sênior,false,160.00"""
+    csv_content_updated = """pid,name,role,level,is_vacancy,hourly_cost
+PROF001,Test Professional 1,Desenvolvedor,Pleno,false,130.00
+PROF002,Test Professional 2,Designer,Sênior,false,160.00"""
     
     with open(csv_file_path, 'w') as f:
         f.write(csv_content_updated)
@@ -73,6 +73,27 @@ Test Professional 2,Designer,Sênior,false,160.00"""
     
     # Clean up
     os.remove(csv_file_path)
+
+    # Test uniqueness constraint
+    print("\n\nTesting uniqueness constraint...")
+    try:
+        # Try to create a professional with an existing ID manually
+        duplicate_prof = {
+            "pid": "PROF001",
+            "name": "Duplicate Professional",
+            "role": "Tester",
+            "level": "Junior",
+            "is_vacancy": False,
+            "hourly_cost": 100.0
+        }
+        response = requests.post(f"{BASE_URL}/professionals/", json=duplicate_prof)
+        if response.status_code == 500: # IntegrityError usually returns 500 unless handled
+             print("✅ Uniqueness constraint verified (Server returned 500 as expected for IntegrityError)")
+        else:
+             print(f"⚠️ Unexpected status code for duplicate ID: {response.status_code}")
+             print(response.text)
+    except Exception as e:
+        print(f"Error testing uniqueness: {e}")
 
 if __name__ == "__main__":
     test_csv_import()

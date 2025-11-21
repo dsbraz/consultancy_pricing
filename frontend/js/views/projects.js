@@ -21,10 +21,10 @@ export async function renderProjects(container) {
             <h3 id="proj-title-display">Detalhes do Projeto</h3>
             
             <div class="form-group">
-                <label>Aplicar Template</label>
+                <label>Aplicar Oferta</label>
                 <div style="display: flex; gap: 0.5rem;">
-                    <select id="sel-template"></select>
-                    <button id="btn-apply-tpl" class="btn btn-primary">Aplicar Template</button>
+                    <select id="sel-offer"></select>
+                    <button id="btn-apply-off" class="btn btn-primary">Aplicar Oferta</button>
                 </div>
             </div>
             
@@ -35,7 +35,7 @@ export async function renderProjects(container) {
                 <button id="btn-add-professional" class="btn btn-sm">➕ Adicionar Profissional</button>
             </div>
             <div id="allocation-table-container" style="overflow-x: auto; margin: 1rem 0;">
-                <p style="color: #6b7280;">Nenhuma alocação ainda. Aplique um template ou crie alocações manualmente.</p>
+                <p style="color: #6b7280;">Nenhuma alocação ainda. Aplique uma oferta ou crie alocações manualmente.</p>
             </div>
             
             <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
@@ -230,7 +230,7 @@ export async function renderProjects(container) {
 
             modalProject.classList.remove('active');
             clearProjectForm();
-            loadTemplatesSelect();
+            loadOffersSelect();
             loadProjects();
         }
     };
@@ -238,8 +238,8 @@ export async function renderProjects(container) {
     function updateProjectLabels(margin, tax) {
         const marginLabel = document.getElementById('label-margin-total');
         const taxLabel = document.getElementById('label-tax-total');
-        if (marginLabel) marginLabel.textContent = `Margem Total (${margin}%)`;
-        if (taxLabel) taxLabel.textContent = `Impostos Totais (${tax}%)`;
+        if (marginLabel) marginLabel.textContent = `Margem Total`;
+        if (taxLabel) taxLabel.textContent = `Impostos Totais`;
     }
 
     function clearProjectForm() {
@@ -250,12 +250,12 @@ export async function renderProjects(container) {
         document.getElementById('proj-margin').value = '40';
     }
 
-    // Apply Template
-    document.getElementById('btn-apply-tpl').onclick = async () => {
-        const tplId = document.getElementById('sel-template').value;
-        if (currentProjectId && tplId) {
-            const res = await api.post(`/projects/${currentProjectId}/apply_template/${tplId}`, {});
-            alert(`Template aplicado! Adicionados ${res.allocations.length} profissionais em ${res.weeks_count} semanas.`);
+    // Apply Offer
+    document.getElementById('btn-apply-off').onclick = async () => {
+        const offId = document.getElementById('sel-offer').value;
+        if (currentProjectId && offId) {
+            const res = await api.post(`/projects/${currentProjectId}/apply_offer/${offId}`, {});
+            alert(`Oferta aplicada! Adicionados ${res.allocations.length} profissionais em ${res.weeks_count} semanas.`);
             loadAllocationTable(currentProjectId);
         }
     };
@@ -383,10 +383,10 @@ export async function renderProjects(container) {
         }
     };
 
-    async function loadTemplatesSelect() {
-        const list = await api.get('/templates/');
-        const sel = document.getElementById('sel-template');
-        sel.innerHTML = '<option value="">Selecione um template</option>' +
+    async function loadOffersSelect() {
+        const list = await api.get('/offers/');
+        const sel = document.getElementById('sel-offer');
+        sel.innerHTML = '<option value="">Selecione uma oferta</option>' +
             list.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
     }
 
@@ -540,7 +540,7 @@ export async function renderProjects(container) {
         document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
         updateProjectLabels(project.margin_rate, project.tax_rate);
         document.getElementById('proj-details').style.display = 'block';
-        loadTemplatesSelect();
+        loadOffersSelect();
         loadAllocationTable(id);
     };
 

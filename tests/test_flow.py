@@ -40,7 +40,8 @@ def test_full_flow():
         "role": "Developer",
         "level": "Senior",
         "is_vacancy": False,
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
+        "professional_id": "DEV001"
     }).json()
     
     prof2 = client.post("/professionals/", json={
@@ -48,12 +49,13 @@ def test_full_flow():
         "role": "Project Manager",
         "level": "Senior",
         "is_vacancy": False,
-        "hourly_cost": 150.0
+        "hourly_cost": 150.0,
+        "professional_id": "PM001"
     }).json()
     
-    # 3. Create Template
-    print("Creating Template...")
-    template = client.post("/templates/", json={
+    # 3. Create Offer
+    print("Creating Offer...")
+    offer = client.post("/offers/", json={
         "name": "Standard Squad",
         "items": [
             {"role": "Developer", "level": "Senior", "quantity": 2},
@@ -71,9 +73,9 @@ def test_full_flow():
         "margin_rate": 20.0 # 20%
     }).json()
     
-    # 5. Apply Template
-    print("Applying Template...")
-    apply_res = client.post(f"/projects/{project['id']}/apply_template/{template['id']}").json()
+    # 5. Apply Offer
+    print("Applying Offer...")
+    apply_res = client.post(f"/projects/{project['id']}/apply_offer/{offer['id']}").json()
     print("Allocations added:", apply_res["allocations"])
     
     # 6. Calculate Price

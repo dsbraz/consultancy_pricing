@@ -1,10 +1,10 @@
 import { renderProfessionals } from './views/professionals.js';
-import { renderTemplates } from './views/templates.js';
+import { renderOffers } from './views/offers.js';
 import { renderProjects } from './views/projects.js';
 
 const routes = {
     'professionals': { title: 'Profissionais', render: renderProfessionals },
-    'templates': { title: 'Templates', render: renderTemplates },
+    'offers': { title: 'Ofertas', render: renderOffers },
     'projects': { title: 'Projetos', render: renderProjects }
 };
 

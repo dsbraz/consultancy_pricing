@@ -1,6 +1,4 @@
-name,role,level,is_vacancy,hourly_cost
-João Silva,Desenvolvedor,Sênior,false,150.00
-Maria Santos,Designer,Pleno,false,120.00
-Vaga Backend,Desenvolvedor,Júnior,true,80.00
-Pedro Oliveira,Arquiteto,Sênior,false,200.00
-Ana Costa,Product Manager,Pleno,false,140.00
+pid,name,role,level,is_vacancy,hourly_cost
+PROF001,João Silva,Desenvolvedor,Sênior,false,150.00
+PROF002,Maria Santos,Designer,Pleno,false,120.00
+VAC001,Vaga Desenvolvedor,Desenvolvedor,Júnior,true,80.00

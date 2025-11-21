@@ -122,18 +122,18 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Project deleted successfully"}
 
-@router.post("/projects/{project_id}/apply_template/{template_id}")
-def apply_template(project_id: int, template_id: int, db: Session = Depends(get_db)):
+@router.post("/projects/{project_id}/apply_offer/{offer_id}")
+def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     from app.services.calendar_service import CalendarService
     from datetime import datetime
     
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    template = db.query(models.Template).options(
-        joinedload(models.Template.items)
-    ).filter(models.Template.id == template_id).first()
+    offer = db.query(models.Offer).options(
+        joinedload(models.Offer.items)
+    ).filter(models.Offer.id == offer_id).first()
     
-    if not project or not template:
-        raise HTTPException(status_code=404, detail="Project or Template not found")
+    if not project or not offer:
+        raise HTTPException(status_code=404, detail="Project or Offer not found")
     
     # Get weekly breakdown for the project
     calendar_service = CalendarService(country_code='BR')
@@ -141,7 +141,7 @@ def apply_template(project_id: int, template_id: int, db: Session = Depends(get_
     
     allocations_added = []
     
-    for item in template.items:
+    for item in offer.items:
         # Determine professionals to allocate for this item
         professionals_to_allocate = []
         
@@ -220,7 +220,7 @@ def apply_template(project_id: int, template_id: int, db: Session = Depends(get_
             allocations_added.append(professional.name)
     
     db.commit()
-    return {"message": "Template applied", "allocations": allocations_added, "weeks_count": len(weeks)}
+    return {"message": "Offer applied", "allocations": allocations_added, "weeks_count": len(weeks)}
 
 @router.get("/projects/{project_id}/calculate_price", response_model=schemas.ProjectPricing)
 def calculate_project_price(project_id: int, db: Session = Depends(get_db)):

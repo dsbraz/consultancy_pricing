@@ -11,16 +11,17 @@ def verify_duration_adjustment():
         "name": f"Test Prof Duration {timestamp}",
         "role": "Developer",
         "level": "Senior",
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
+        "professional_id": f"DUR{timestamp}"
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     assert resp.status_code == 200
     prof_id = resp.json()["id"]
     print(f"✓ Created professional with ID: {prof_id}")
 
-    # 2. Create a template
-    template_data = {
-        "name": f"Duration Test Template {timestamp}",
+    # 2. Create an offer
+    offer_data = {
+        "name": f"Duration Test Offer {timestamp}",
         "items": [
             {
                 "role": "Developer",
@@ -31,10 +32,10 @@ def verify_duration_adjustment():
             }
         ]
     }
-    resp = requests.post(f"{BASE_URL}/templates/", json=template_data)
+    resp = requests.post(f"{BASE_URL}/offers/", json=offer_data)
     assert resp.status_code == 200
-    template_id = resp.json()["id"]
-    print(f"✓ Created template with ID: {template_id}")
+    offer_id = resp.json()["id"]
+    print(f"✓ Created offer with ID: {offer_id}")
 
     # 3. Create a project with 3 months duration
     project_data = {
@@ -49,10 +50,10 @@ def verify_duration_adjustment():
     project_id = resp.json()["id"]
     print(f"✓ Created project with ID: {project_id}, duration: 3 months")
 
-    # 4. Apply template
-    resp = requests.post(f"{BASE_URL}/projects/{project_id}/apply_template/{template_id}")
+    # 4. Apply offer
+    resp = requests.post(f"{BASE_URL}/projects/{project_id}/apply_offer/{offer_id}")
     assert resp.status_code == 200
-    print("✓ Applied template")
+    print("✓ Applied offer")
 
     # 5. Get initial allocation table
     resp = requests.get(f"{BASE_URL}/projects/{project_id}/allocation_table")

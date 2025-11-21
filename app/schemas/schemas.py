@@ -4,6 +4,7 @@ from datetime import date
 
 # Professional Schemas
 class ProfessionalBase(BaseModel):
+    pid: str
     name: str
     role: str
     level: str
@@ -14,6 +15,7 @@ class ProfessionalCreate(ProfessionalBase):
     pass
 
 class ProfessionalUpdate(BaseModel):
+    pid: Optional[str] = None
     name: Optional[str] = None
     role: Optional[str] = None
     level: Optional[str] = None
@@ -25,36 +27,36 @@ class Professional(ProfessionalBase):
     class Config:
         from_attributes = True
 
-# Template Schemas
-class TemplateItemBase(BaseModel):
+# Offer Schemas
+class OfferItemBase(BaseModel):
     role: Optional[str] = None
     level: Optional[str] = None
     quantity: int = 1
     allocation_percentage: float = 100.0
     professional_id: Optional[int] = None
 
-class TemplateItemCreate(TemplateItemBase):
+class OfferItemCreate(OfferItemBase):
     pass
 
-class TemplateItem(TemplateItemBase):
+class OfferItem(OfferItemBase):
     id: int
-    template_id: int
+    offer_id: int
     class Config:
         orm_mode = True
 
-class TemplateBase(BaseModel):
+class OfferBase(BaseModel):
     name: str
 
-class TemplateCreate(TemplateBase):
-    items: List[TemplateItemCreate] = []
+class OfferCreate(OfferBase):
+    items: List[OfferItemCreate] = []
 
-class TemplateUpdate(BaseModel):
+class OfferUpdate(BaseModel):
     name: Optional[str] = None
-    items: Optional[List[TemplateItemCreate]] = None
+    items: Optional[List[OfferItemCreate]] = None
 
-class Template(TemplateBase):
+class Offer(OfferBase):
     id: int
-    items: List[TemplateItem] = []
+    items: List[OfferItem] = []
     class Config:
         from_attributes = True
 
