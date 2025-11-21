@@ -5,6 +5,8 @@ export async function renderOffers(container) {
     let editingId = null;
     let currentItems = [];
     let professionals = [];
+    let currentSortBy = 'name'; // default sort by name
+    let currentSortDirection = 'asc'; // default ascending
 
     // Load professionals first
     try {
@@ -20,6 +22,17 @@ export async function renderOffers(container) {
                 <button id="btn-new-offer" class="btn btn-primary">
                     <span class="material-icons" style="margin-right: 0.5rem;">add</span>
                     Nova Oferta
+                </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0 0.5rem;">
+                <label style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ordenar por:</label>
+                <select id="sort-select" style="padding: 0.5rem; border: 1px solid var(--md-sys-color-outline); border-radius: 0.25rem; background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); font-size: 0.875rem;">
+                    <option value="name">Nome</option>
+                    <option value="items_count">Número de Itens</option>
+                    <option value="created_at">Data de Criação</option>
+                </select>
+                <button id="sort-direction-btn" class="btn btn-sm" style="display: flex; align-items: center; gap: 0.25rem; min-width: auto; padding: 0.5rem 0.75rem;">
+                    <span class="material-icons" id="sort-icon" style="font-size: 1.25rem;">arrow_upward</span>
                 </button>
             </div>
             <div id="offers-list"></div>
@@ -75,6 +88,19 @@ export async function renderOffers(container) {
 
     // Load offers
     await loadOffers();
+
+    // Sort controls event listeners
+    document.getElementById('sort-select').addEventListener('change', (e) => {
+        currentSortBy = e.target.value;
+        loadOffers();
+    });
+
+    document.getElementById('sort-direction-btn').addEventListener('click', () => {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+        const icon = document.getElementById('sort-icon');
+        icon.textContent = currentSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
+        loadOffers();
+    });
 
     // Modal controls
     const modal = document.getElementById('modal-offer');
@@ -254,6 +280,35 @@ export async function renderOffers(container) {
         renderItemsList();
     }
 
+    function sortOffers(offers, sortBy, direction) {
+        const sorted = [...offers].sort((a, b) => {
+            let aVal, bVal;
+
+            if (sortBy === 'name') {
+                aVal = a.name.toLowerCase();
+                bVal = b.name.toLowerCase();
+                return direction === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            } else if (sortBy === 'items_count') {
+                aVal = a.items.length;
+                bVal = b.items.length;
+            } else if (sortBy === 'created_at') {
+                // If created_at exists, use it; otherwise fall back to id
+                aVal = a.created_at ? new Date(a.created_at) : a.id;
+                bVal = b.created_at ? new Date(b.created_at) : b.id;
+            }
+
+            if (direction === 'asc') {
+                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            } else {
+                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+            }
+        });
+
+        return sorted;
+    }
+
     async function loadOffers() {
         const offers = await api.get('/offers/');
         const listDiv = document.getElementById('offers-list');
@@ -263,7 +318,10 @@ export async function renderOffers(container) {
             return;
         }
 
-        listDiv.innerHTML = offers.map(t => `
+        // Sort offers
+        const sortedOffers = sortOffers(offers, currentSortBy, currentSortDirection);
+
+        listDiv.innerHTML = sortedOffers.map(t => `
             <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
                     <div>
