@@ -2,7 +2,7 @@ import requests
 import os
 
 # Test CSV import functionality
-BASE_URL = "http://localhost:8000/api"
+BASE_URL = "http://localhost:8000"
 
 def test_csv_import():
     """Test importing professionals from CSV file"""

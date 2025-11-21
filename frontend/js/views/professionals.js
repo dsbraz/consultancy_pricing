@@ -184,7 +184,7 @@ export async function renderProfessionals(container) {
         formData.append('file', file);
 
         try {
-            const response = await fetch('/api/professionals/import-csv', {
+            const response = await fetch('/professionals/import-csv', {
                 method: 'POST',
                 body: formData
             });

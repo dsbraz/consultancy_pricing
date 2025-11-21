@@ -31,7 +31,7 @@ def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(ge
     professionals = db.query(models.Professional).offset(skip).limit(limit).all()
     return professionals
 
-@router.put("/professionals/{professional_id}", response_model=schemas.Professional)
+@router.put("/professionals/{professional_id:int}", response_model=schemas.Professional)
 def update_professional(professional_id: int, professional: schemas.ProfessionalUpdate, db: Session = Depends(get_db)):
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
@@ -46,7 +46,7 @@ def update_professional(professional_id: int, professional: schemas.Professional
     db.refresh(db_professional)
     return db_professional
 
-@router.delete("/professionals/{professional_id}")
+@router.delete("/professionals/{professional_id:int}")
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
