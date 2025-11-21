@@ -36,7 +36,7 @@ def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(ge
 def update_professional(professional_id: int, professional: schemas.ProfessionalUpdate, db: Session = Depends(get_db)):
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
-        raise HTTPException(status_code=404, detail="Professional not found")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
     # Update only provided fields
     update_data = professional.model_dump(exclude_unset=True)
@@ -51,7 +51,7 @@ def update_professional(professional_id: int, professional: schemas.Professional
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
-        raise HTTPException(status_code=404, detail="Professional not found")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
     db.delete(db_professional)
     db.commit()

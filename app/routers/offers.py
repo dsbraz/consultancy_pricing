@@ -39,7 +39,7 @@ def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 def update_offer(offer_id: int, offer: schemas.OfferUpdate, db: Session = Depends(get_db)):
     db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not db_offer:
-        raise HTTPException(status_code=404, detail="Offer not found")
+        raise HTTPException(status_code=404, detail="Oferta não encontrada")
     
     # Update name if provided
     if offer.name is not None:
@@ -70,7 +70,7 @@ def update_offer(offer_id: int, offer: schemas.OfferUpdate, db: Session = Depend
 def delete_offer(offer_id: int, db: Session = Depends(get_db)):
     db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not db_offer:
-        raise HTTPException(status_code=404, detail="Offer not found")
+        raise HTTPException(status_code=404, detail="Oferta não encontrada")
     
     # Delete offer items first (cascade should handle this, but being explicit)
     db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
