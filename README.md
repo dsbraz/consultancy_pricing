@@ -314,33 +314,100 @@ docker stop consultancy-pricing
 docker rm consultancy-pricing
 ```
 
+```
+
 ### Deploy em Produção
 
 Para executar em ambiente de produção usando `docker-compose.prod.yml`:
 
-#### 1. Configurar variáveis de produção
+> [!IMPORTANT]
+> Em produção, a aplicação usa um **banco de dados gerenciado** (Cloud SQL, RDS, Azure Database) ao invés de um container PostgreSQL.
+
+#### 1. Provisionar banco de dados gerenciado
+
+Escolha seu provedor e crie uma instância PostgreSQL:
+
+**Google Cloud SQL:**
+```bash
+gcloud sql instances create consultancy-pricing-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=us-central1
+
+gcloud sql databases create consultancy_pricing \
+  --instance=consultancy-pricing-db
+```
+
+**AWS RDS:**
+```bash
+aws rds create-db-instance \
+  --db-instance-identifier consultancy-pricing-db \
+  --db-instance-class db.t3.micro \
+  --engine postgres \
+  --engine-version 15.4 \
+  --allocated-storage 20
+```
+
+**Azure Database:**
+```bash
+az postgres server create \
+  --resource-group myResourceGroup \
+  --name consultancy-pricing-db \
+  --location eastus \
+  --sku-name B_Gen5_1 \
+  --version 15
+```
+
+#### 2. Configurar variáveis de produção
 
 Edite o arquivo `.env` com valores de produção:
 
 ```bash
 ENVIRONMENT=production
 CORS_ORIGINS=https://seudominio.com,https://www.seudominio.com
+
+# Exemplo para Cloud SQL (IP privado):
+INSTANCE_CONNECTION_NAME=10.x.x.x:5432
+
+# Exemplo para AWS RDS:
+# INSTANCE_CONNECTION_NAME=mydb.abc123.us-east-1.rds.amazonaws.com:5432
+
+# Exemplo para Azure:
+# INSTANCE_CONNECTION_NAME=myserver.postgres.database.azure.com:5432
+
 DB_USER=seu_usuario_prod
 DB_PASS=senha_segura_aqui
 DB_NAME=consultancy_pricing
 ```
 
-#### 2. Executar com configuração de produção
+#### 3. Configurar conectividade
+
+**Opção A: VPC/Rede Privada** (Recomendado)
+- Configure o container na mesma VPC que o banco de dados
+- Use IP privado para conexão
+
+**Opção B: Cloud SQL Proxy** (Google Cloud)
+```bash
+# Adicione ao Dockerfile se usar Cloud SQL Proxy
+RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+RUN chmod +x cloud_sql_proxy
+```
+
+**Opção C: IP Público** (Menos seguro)
+- Configure firewall do banco para aceitar IP do container
+- Use SSL/TLS obrigatoriamente
+
+#### 4. Executar com configuração de produção
 
 ```bash
 # Build e iniciar com configuração de produção
-docker-compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml up --build -d
 
 # Ver logs
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 
 # Parar
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 ```
 
 > [!WARNING]
