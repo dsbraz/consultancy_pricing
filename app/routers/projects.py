@@ -59,55 +59,44 @@ def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session 
     if not db_project:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
-    # Check if duration or start_date changed
     duration_changed = project.duration_months is not None and project.duration_months != db_project.duration_months
     start_date_changed = project.start_date is not None and project.start_date != db_project.start_date
     
-    # Update only provided fields
     update_data = project.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_project, key, value)
     
     db.commit()
     
-    # If duration or start_date changed, adjust weekly allocations
     if duration_changed or start_date_changed:
         calendar_service = CalendarService(country_code='BR')
         new_weeks = calendar_service.get_weekly_breakdown(db_project.start_date, db_project.duration_months)
         
-        # Create a mapping of week_number to week data for easy lookup
         new_weeks_map = {w['week_number']: w for w in new_weeks}
         
-        # Get all allocations for this project
         allocations = db.query(models.ProjectAllocation).filter(
             models.ProjectAllocation.project_id == project_id
         ).all()
         
         for allocation in allocations:
-            # Get existing weekly allocations
             existing_weeks = {w.week_number: w for w in allocation.weekly_allocations}
             
-            # Determine which weeks to keep, add, or remove
             new_week_numbers = set(new_weeks_map.keys())
             existing_week_numbers = set(existing_weeks.keys())
             
-            # Update existing weeks with new dates and available_hours
             weeks_to_update = existing_week_numbers & new_week_numbers
             for week_num in weeks_to_update:
                 existing_week = existing_weeks[week_num]
                 new_week_data = new_weeks_map[week_num]
                 
-                # Update the week start date and available hours
                 existing_week.week_start_date = datetime.fromisoformat(new_week_data['week_start']).date()
                 existing_week.available_hours = new_week_data['available_hours']
-                # Keep hours_allocated as is
             
-            # Remove weeks that are no longer in range
             weeks_to_remove = existing_week_numbers - new_week_numbers
             for week_num in weeks_to_remove:
                 db.delete(existing_weeks[week_num])
             
-            # Add new weeks
+
             weeks_to_add = new_week_numbers - existing_week_numbers
             for week_num in weeks_to_add:
                 week = new_weeks_map[week_num]
@@ -131,7 +120,6 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     if not db_project:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
-    # Delete project allocations first
     db.query(models.ProjectAllocation).filter(models.ProjectAllocation.project_id == project_id).delete()
     
     db.delete(db_project)
@@ -150,24 +138,19 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     if not project or not offer:
         raise HTTPException(status_code=404, detail="Projeto ou Oferta não encontrado")
     
-    # Get weekly breakdown for the project
     calendar_service = CalendarService(country_code='BR')
     weeks = calendar_service.get_weekly_breakdown(project.start_date, project.duration_months)
     
     allocations_added = []
     
     for item in offer.items:
-        # Determine professionals to allocate for this item
         professionals_to_allocate = []
         
         if item.professional_id:
-            # Specific professional requested
             prof = db.query(models.Professional).filter(models.Professional.id == item.professional_id).first()
             if prof:
                 professionals_to_allocate.append(prof)
-            # If specific professional not found, we could fallback or skip. 
         else:
-            # Generic role/level requested - find vacancies
             vacancies = db.query(models.Professional).filter(
                 models.Professional.role == item.role,
                 models.Professional.level == item.level,
@@ -177,7 +160,6 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
             needed = item.quantity
             current = len(vacancies)
             
-            # Create missing vacancies
             if current < needed:
                 for i in range(needed - current):
                     new_vacancy = models.Professional(
@@ -189,45 +171,40 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
                         hourly_cost=100.0  # Default cost
                     )
                     db.add(new_vacancy)
-                    db.flush()  # Get ID without full commit
+                    db.flush()
                     vacancies.append(new_vacancy)
             
             professionals_to_allocate.extend(vacancies[:needed])
         
-        # Create allocations with weekly breakdown
         for professional in professionals_to_allocate:
-            # Check if already allocated
             existing = db.query(models.ProjectAllocation).filter(
                 models.ProjectAllocation.project_id == project.id,
                 models.ProjectAllocation.professional_id == professional.id
             ).first()
             
             if existing:
-                # Skip if already allocated to avoid duplicates/errors
                 continue
-            # Calculate selling rate: cost / (1 - margin)
+            
             margin_rate = project.margin_rate / 100.0 if project.margin_rate > 1 else project.margin_rate
             divisor = 1 - margin_rate
             if divisor <= 0:
-                selling_rate = professional.hourly_cost  # Fallback if margin >= 100%
+                selling_rate = professional.hourly_cost
             else:
                 selling_rate = professional.hourly_cost / divisor
             
-            # Create allocation with fixed selling rate
             db_alloc = models.ProjectAllocation(
                 project_id=project.id,
                 professional_id=professional.id,
                 selling_hourly_rate=selling_rate
             )
             db.add(db_alloc)
-            db.flush()  # Get allocation ID
-            # Create weekly allocations (default: 40 hours per week, respecting available hours)
+            db.flush()
             for week in weeks:
                 weekly_alloc = models.WeeklyAllocation(
                     allocation_id=db_alloc.id,
                     week_number=week['week_number'],
                     week_start_date=datetime.fromisoformat(week['week_start']).date(),
-                    hours_allocated=week['available_hours'] * (item.allocation_percentage / 100.0),  # Apply allocation percentage to available hours
+                    hours_allocated=week['available_hours'] * (item.allocation_percentage / 100.0),
                     available_hours=week['available_hours']
                 )
                 db.add(weekly_alloc)

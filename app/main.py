@@ -5,7 +5,6 @@ from app.database import engine, Base
 from app.routers import professionals, projects, offers
 import os
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Consultancy Pricing API")
@@ -22,7 +21,6 @@ app.include_router(professionals.router, tags=["Professionals"])
 app.include_router(offers.router, tags=["Offers"])
 app.include_router(projects.router, tags=["Projects"])
 
-# Mount static files
 frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
 app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 

@@ -25,7 +25,6 @@ class PricingService:
         weekly_costs = {}
         weekly_selling = {}
         
-        # Iterate through all allocations
         for allocation in project.allocations:
             professional = allocation.professional
             if not professional:
@@ -34,7 +33,6 @@ class PricingService:
             hourly_cost = professional.hourly_cost
             selling_rate = allocation.selling_hourly_rate
             
-            # Sum up all weekly allocations
             for weekly_alloc in allocation.weekly_allocations:
                 hours = weekly_alloc.hours_allocated
                 
@@ -44,29 +42,19 @@ class PricingService:
                 total_cost += week_cost
                 total_selling += week_selling
                 
-                # Track by week
-                week_key = f"Week {weekly_alloc.week_number}"
                 weekly_costs[week_key] = weekly_costs.get(week_key, 0) + week_cost
                 weekly_selling[week_key] = weekly_selling.get(week_key, 0) + week_selling
                 
-                # Aggregate by month
-                week_date = weekly_alloc.week_start_date
-                month_key = f"{week_date.year}-{week_date.month:02d}"
                 monthly_costs[month_key] = monthly_costs.get(month_key, 0) + week_cost
                 monthly_selling[month_key] = monthly_selling.get(month_key, 0) + week_selling
         
-        # Calculate margin (Selling - Cost)
         total_margin = total_selling - total_cost
         
-        # Calculate Tax: Selling * (tax_rate / 100)
-        # This implies Tax is added ON TOP of the Selling Price.
         tax_rate_decimal = project.tax_rate / 100.0
         total_tax = total_selling * tax_rate_decimal
         
-        # Final Price = Selling + Tax
         final_price = total_selling + total_tax
         
-        # Calculate final margin percentage: (1 - (Cost / Selling)) * 100
         final_margin_percent = (1 - (total_cost / total_selling)) * 100 if total_selling > 0 else 0
         
         return {

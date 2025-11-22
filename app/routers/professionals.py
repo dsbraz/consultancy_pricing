@@ -36,7 +36,6 @@ def update_professional(professional_id: int, professional: schemas.Professional
     if not db_professional:
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
-    # Update only provided fields
     update_data = professional.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_professional, key, value)
@@ -67,7 +66,6 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Arquivo deve ser um CSV")
     
-    # Read file content
     content = await file.read()
     decoded_content = content.decode('utf-8')
     csv_reader = csv.DictReader(io.StringIO(decoded_content))
@@ -85,7 +83,6 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
                 error_count += 1
                 continue
             
-            # Parse fields
             pid = row['pid'].strip()
             name = row['name'].strip()
             role = row['role'].strip()
@@ -101,13 +98,11 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             except ValueError:
                 hourly_cost = 0.0
             
-            # Check if professional exists (by pid)
             existing_prof = db.query(models.Professional).filter(
                 models.Professional.pid == pid
             ).first()
             
             if existing_prof:
-                # Update existing professional
                 existing_prof.name = name
                 existing_prof.role = role
                 existing_prof.level = level
@@ -115,7 +110,6 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
                 existing_prof.hourly_cost = hourly_cost
                 updated_count += 1
             else:
-                # Create new professional
                 new_prof = models.Professional(
                     pid=pid,
                     name=name,
@@ -131,7 +125,6 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             errors.append(f"Linha {row_num}: {str(e)}")
             error_count += 1
     
-    # Commit all changes
     try:
         db.commit()
     except Exception as e:

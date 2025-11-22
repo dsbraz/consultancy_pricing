@@ -41,16 +41,12 @@ def update_offer(offer_id: int, offer: schemas.OfferUpdate, db: Session = Depend
     if not db_offer:
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
     
-    # Update name if provided
     if offer.name is not None:
         db_offer.name = offer.name
     
-    # Update items if provided
     if offer.items is not None:
-        # Delete existing items
         db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
         
-        # Add new items
         for item in offer.items:
             db_item = models.OfferItem(
                 offer_id=db_offer.id,
@@ -72,7 +68,6 @@ def delete_offer(offer_id: int, db: Session = Depends(get_db)):
     if not db_offer:
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
     
-    # Delete offer items first (cascade should handle this, but being explicit)
     db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
     
     db.delete(db_offer)

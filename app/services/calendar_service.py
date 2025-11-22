@@ -7,7 +7,6 @@ class CalendarService:
         self.holidays = holidays.country_holidays(country_code, subdiv=state_code)
 
     def is_business_day(self, check_date: date) -> bool:
-        # 0-4 are Monday-Friday, 5-6 are Saturday-Sunday
         if check_date.weekday() >= 5:
             return False
         if check_date in self.holidays:
@@ -53,7 +52,7 @@ class CalendarService:
 
     def get_monday_of_week(self, check_date: date) -> date:
         """Returns the Monday of the week for the given date."""
-        days_since_monday = check_date.weekday()  # 0 = Monday, 6 = Sunday
+        days_since_monday = check_date.weekday()
         monday = check_date - timedelta(days=days_since_monday)
         return monday
 
@@ -66,7 +65,7 @@ class CalendarService:
         business_days = 0
         holidays_in_week = []
         
-        for day_offset in range(7):  # Monday to Sunday
+        for day_offset in range(7):
             current_date = week_start + timedelta(days=day_offset)
             if current_date in self.holidays:
                 holidays_in_week.append(current_date)
@@ -82,7 +81,6 @@ class CalendarService:
         """
         weeks = []
         
-        # Calculate end date (approximate)
         end_date = start_date
         for _ in range(duration_months):
             month = end_date.month
@@ -92,16 +90,14 @@ class CalendarService:
             else:
                 end_date = date(year, month + 1, 1)
         
-        # Get the Monday of the start week
         current_monday = self.get_monday_of_week(start_date)
         week_number = 1
         
         while current_monday < end_date:
-            week_end = current_monday + timedelta(days=6)  # Sunday
+            week_end = current_monday + timedelta(days=6)
             
             available_hours, holidays_in_week = self.get_business_hours_in_week(current_monday, hours_per_day)
             
-            # Count only business days
             business_days = available_hours // hours_per_day if hours_per_day > 0 else 0
             
             week_info = {
@@ -115,7 +111,6 @@ class CalendarService:
             
             weeks.append(week_info)
             
-            # Move to next Monday
             current_monday += timedelta(days=7)
             week_number += 1
         

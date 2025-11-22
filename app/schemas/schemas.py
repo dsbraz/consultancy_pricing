@@ -2,7 +2,6 @@ from typing import List, Optional
 from pydantic import BaseModel, field_validator, Field
 from datetime import date
 
-# Professional Schemas
 class ProfessionalBase(BaseModel):
     pid: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
@@ -41,7 +40,6 @@ class Professional(ProfessionalBase):
     class Config:
         from_attributes = True
 
-# Offer Schemas
 class OfferItemBase(BaseModel):
     role: str = Field(..., min_length=1)
     level: str = Field(..., min_length=1)
@@ -95,7 +93,6 @@ class Offer(OfferBase):
     class Config:
         from_attributes = True
 
-# Project Schemas
 class WeeklyAllocationBase(BaseModel):
     week_number: int
     week_start_date: date
@@ -161,7 +158,6 @@ class Project(ProjectBase):
     class Config:
         from_attributes = True
 
-# Pricing Calculation Schemas
 class ProjectPricing(BaseModel):
     total_cost: float
     total_selling: float
