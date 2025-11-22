@@ -1,6 +1,9 @@
 import holidays
 from datetime import date, timedelta
 import calendar
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CalendarService:
     def __init__(self, country_code='BR', state_code=None):
@@ -79,6 +82,7 @@ class CalendarService:
         Returns a list of weeks with their details for the project duration.
         Each week includes: week_number, week_start, week_end, business_days, available_hours, holidays
         """
+        logger.debug(f"Generating weekly breakdown: start_date={start_date}, duration_months={duration_months}")
         weeks = []
         
         end_date = start_date
@@ -113,5 +117,8 @@ class CalendarService:
             
             current_monday += timedelta(days=7)
             week_number += 1
+        
+        total_holidays = sum(1 for w in weeks if w['holidays'])
+        logger.info(f"Weekly breakdown generated: {len(weeks)} weeks, {total_holidays} weeks with holidays")
         
         return weeks

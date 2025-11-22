@@ -3,15 +3,18 @@ from sqlalchemy.orm import Session
 from typing import List
 import csv
 import io
+import logging
 
 from app.database import get_db
 from app.models import models
 from app.schemas import schemas
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/professionals/", response_model=schemas.Professional)
 def create_professional(professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)):
+    logger.info(f"Creating professional: pid={professional.pid}, name={professional.name}")
     db_professional = models.Professional(
         pid=professional.pid,
         name=professional.name,
@@ -23,17 +26,21 @@ def create_professional(professional: schemas.ProfessionalCreate, db: Session = 
     db.add(db_professional)
     db.commit()
     db.refresh(db_professional)
+    logger.info(f"Professional created successfully: id={db_professional.id}, pid={db_professional.pid}")
     return db_professional
 
 @router.get("/professionals/", response_model=List[schemas.Professional])
 def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     professionals = db.query(models.Professional).offset(skip).limit(limit).all()
+    logger.debug(f"Retrieved {len(professionals)} professionals (skip={skip}, limit={limit})")
     return professionals
 
 @router.put("/professionals/{professional_id:int}", response_model=schemas.Professional)
 def update_professional(professional_id: int, professional: schemas.ProfessionalUpdate, db: Session = Depends(get_db)):
+    logger.info(f"Updating professional: id={professional_id}")
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
+        logger.warning(f"Professional not found for update: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
     update_data = professional.model_dump(exclude_unset=True)
@@ -42,16 +49,20 @@ def update_professional(professional_id: int, professional: schemas.Professional
     
     db.commit()
     db.refresh(db_professional)
+    logger.info(f"Professional updated successfully: id={professional_id}, pid={db_professional.pid}")
     return db_professional
 
 @router.delete("/professionals/{professional_id:int}")
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Deleting professional: id={professional_id}")
     db_professional = db.query(models.Professional).filter(models.Professional.id == professional_id).first()
     if not db_professional:
+        logger.warning(f"Professional not found for deletion: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
     db.delete(db_professional)
     db.commit()
+    logger.info(f"Professional deleted successfully: id={professional_id}, pid={db_professional.pid}")
     return {"message": "Professional deleted successfully"}
 
 @router.post("/professionals/import-csv")
@@ -64,8 +75,10 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
     Otherwise, a new professional will be created.
     """
     if not file.filename.endswith('.csv'):
+        logger.warning(f"Invalid file type for CSV import: {file.filename}")
         raise HTTPException(status_code=400, detail="Arquivo deve ser um CSV")
     
+    logger.info(f"Starting CSV import from file: {file.filename}")
     content = await file.read()
     decoded_content = content.decode('utf-8')
     csv_reader = csv.DictReader(io.StringIO(decoded_content))
@@ -127,9 +140,14 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
     
     try:
         db.commit()
+        logger.info(f"CSV import completed: created={created_count}, updated={updated_count}, errors={error_count}")
     except Exception as e:
         db.rollback()
+        logger.error(f"CSV import failed during commit: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar no banco de dados: {str(e)}")
+    
+    if error_count > 0:
+        logger.warning(f"CSV import had {error_count} errors")
     
     return {
         "message": "Importação concluída",

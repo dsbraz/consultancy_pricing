@@ -2,6 +2,9 @@ from app.models.models import Project, Professional
 from app.services.calendar_service import CalendarService
 from sqlalchemy.orm import Session
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PricingService:
     def __init__(self, db: Session):
@@ -18,6 +21,11 @@ class PricingService:
         Tax = Calculated such that Total Selling / (1 - tax_rate) - Total Selling
         Final Price = Total Selling / (1 - tax_rate)
         """
+        logger.info(f"Calculating pricing for project: id={project.id}, name={project.name}")
+        
+        if not project.allocations:
+            logger.warning(f"Project has no allocations: id={project.id}")
+        
         total_cost = 0.0
         total_selling = 0.0
         monthly_costs = {}
@@ -56,6 +64,13 @@ class PricingService:
         final_price = total_selling + total_tax
         
         final_margin_percent = (1 - (total_cost / total_selling)) * 100 if total_selling > 0 else 0
+        
+        logger.info(
+            f"Pricing calculation completed for project {project.id}: "
+            f"cost={total_cost:.2f}, selling={total_selling:.2f}, "
+            f"margin={total_margin:.2f}, tax={total_tax:.2f}, "
+            f"final_price={final_price:.2f}, final_margin={final_margin_percent:.1f}%"
+        )
         
         return {
             "total_cost": total_cost,

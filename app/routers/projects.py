@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 import uuid
+import logging
 
 from app.database import get_db
 from app.models import models
@@ -13,9 +14,11 @@ from app.services.excel_service import ExcelExportService
 from datetime import datetime
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/projects/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    logger.info(f"Creating project: name={project.name}, duration={project.duration_months} months, allocations={len(project.allocations)}")
     db_project = models.Project(
         name=project.name,
         start_date=project.start_date,
@@ -37,11 +40,13 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
         
     db.commit()
     db.refresh(db_project)
+    logger.info(f"Project created successfully: id={db_project.id}, name={db_project.name}")
     return db_project
 
 @router.get("/projects/", response_model=List[schemas.Project])
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     projects = db.query(models.Project).offset(skip).limit(limit).all()
+    logger.debug(f"Retrieved {len(projects)} projects (skip={skip}, limit={limit})")
     return projects
 
 @router.get("/projects/{project_id}", response_model=schemas.Project)
@@ -53,10 +58,11 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
 
 @router.put("/projects/{project_id}", response_model=schemas.Project)
 def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session = Depends(get_db)):
-
+    logger.info(f"Updating project: id={project_id}")
     
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not db_project:
+        logger.warning(f"Project not found for update: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
     duration_changed = project.duration_months is not None and project.duration_months != db_project.duration_months
@@ -110,25 +116,30 @@ def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session 
                 db.add(new_weekly_alloc)
         
         db.commit()
+        logger.info(f"Project allocation dates updated: project_id={project_id}, weeks_adjusted={len(new_weeks)}")
     
     db.refresh(db_project)
+    logger.info(f"Project updated successfully: id={project_id}")
     return db_project
 
 @router.delete("/projects/{project_id}")
 def delete_project(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Deleting project: id={project_id}")
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not db_project:
+        logger.warning(f"Project not found for deletion: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
     db.query(models.ProjectAllocation).filter(models.ProjectAllocation.project_id == project_id).delete()
     
     db.delete(db_project)
     db.commit()
+    logger.info(f"Project deleted successfully: id={project_id}")
     return {"message": "Project deleted successfully"}
 
 @router.post("/projects/{project_id}/apply_offer/{offer_id}")
 def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
-
+    logger.info(f"Applying offer to project: project_id={project_id}, offer_id={offer_id}")
     
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     offer = db.query(models.Offer).options(
@@ -136,6 +147,7 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     ).filter(models.Offer.id == offer_id).first()
     
     if not project or not offer:
+        logger.warning(f"Project or offer not found: project_id={project_id}, offer_id={offer_id}")
         raise HTTPException(status_code=404, detail="Projeto ou Oferta não encontrado")
     
     calendar_service = CalendarService(country_code='BR')
@@ -212,19 +224,24 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
             allocations_added.append(professional.name)
     
     db.commit()
+    logger.info(f"Offer applied successfully: project_id={project_id}, professionals_added={len(allocations_added)}, weeks={len(weeks)}")
     return {"message": "Offer applied", "allocations": allocations_added, "weeks_count": len(weeks)}
 
 @router.get("/projects/{project_id}/calculate_price", response_model=schemas.ProjectPricing)
 def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Calculating price for project: id={project_id}")
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
+        logger.warning(f"Project not found for pricing: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
         
     pricing_service = PricingService(db)
     try:
         result = pricing_service.calculate_project_pricing(project)
+        logger.info(f"Price calculated: project_id={project_id}, total_cost={result['total_cost']:.2f}, final_price={result['final_price']:.2f}")
         return result
     except ValueError as e:
+        logger.error(f"Price calculation failed for project {project_id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/projects/{project_id}/allocation_table")
@@ -334,6 +351,7 @@ def update_allocations(project_id: int, updates: List[dict], db: Session = Depen
                     updated_count += 1
     
     db.commit()
+    logger.info(f"Allocations updated: project_id={project_id}, items_updated={updated_count}")
     return {"message": f"Updated {updated_count} items", "updated_count": updated_count}
 
 
@@ -348,16 +366,18 @@ def add_professional_to_project(
     Manually add a professional to a project.
     Creates ProjectAllocation and WeeklyAllocations for all project weeks.
     """
-
+    logger.info(f"Adding professional to project: project_id={project_id}, professional_id={professional_id}")
     
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
+        logger.warning(f"Project not found: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
     professional = db.query(models.Professional).filter(
         models.Professional.id == professional_id
     ).first()
     if not professional:
+        logger.warning(f"Professional not found: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
     
     # Check if already allocated
@@ -366,6 +386,7 @@ def add_professional_to_project(
         models.ProjectAllocation.professional_id == professional_id
     ).first()
     if existing:
+        logger.warning(f"Professional already allocated: project_id={project_id}, professional_id={professional_id}")
         raise HTTPException(status_code=400, detail="Profissional já alocado neste projeto")
     
     # Calculate selling rate if not provided
@@ -404,6 +425,8 @@ def add_professional_to_project(
     db.commit()
     db.refresh(allocation)
     
+    logger.info(f"Professional added to project: project_id={project_id}, professional_id={professional_id}, weeks={len(weeks)}")
+    
     return {
         "message": "Professional added to project",
         "allocation_id": allocation.id,
@@ -423,12 +446,14 @@ def remove_professional_from_project(
     Remove a professional allocation from a project.
     Deletes the ProjectAllocation and all associated WeeklyAllocations (cascade).
     """
+    logger.info(f"Removing professional from project: project_id={project_id}, allocation_id={allocation_id}")
     allocation = db.query(models.ProjectAllocation).filter(
         models.ProjectAllocation.id == allocation_id,
         models.ProjectAllocation.project_id == project_id
     ).first()
     
     if not allocation:
+        logger.warning(f"Allocation not found for removal: project_id={project_id}, allocation_id={allocation_id}")
         raise HTTPException(status_code=404, detail="Alocação não encontrada")
     
     professional_name = allocation.professional.name
@@ -436,6 +461,8 @@ def remove_professional_from_project(
     # Delete allocation (weekly allocations will be deleted by cascade)
     db.delete(allocation)
     db.commit()
+    
+    logger.info(f"Professional removed from project: {professional_name}, allocation_id={allocation_id}")
     
     return {
         "message": f"Professional {professional_name} removed from project",
@@ -449,6 +476,7 @@ def export_project_excel(project_id: int, db: Session = Depends(get_db)):
     Exporta um projeto completo para arquivo Excel.
     Retorna arquivo .xlsx com informações do projeto, resumo financeiro e tabela de alocação.
     """
+    logger.info(f"Exporting project to Excel: id={project_id}")
     # Buscar projeto
     project = db.query(models.Project).options(
         joinedload(models.Project.allocations)
@@ -458,6 +486,7 @@ def export_project_excel(project_id: int, db: Session = Depends(get_db)):
     ).filter(models.Project.id == project_id).first()
     
     if not project:
+        logger.warning(f"Project not found for Excel export: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
     # Gerar Excel
@@ -469,6 +498,7 @@ def export_project_excel(project_id: int, db: Session = Depends(get_db)):
     filename = f"projeto_{project.name.replace(' ', '_')}_{timestamp}.xlsx"
     
     # Retornar como download
+    logger.info(f"Excel export successful: project_id={project_id}, filename={filename}")
     return StreamingResponse(
         excel_file,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
