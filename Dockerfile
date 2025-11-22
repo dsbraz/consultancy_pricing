@@ -1,6 +1,10 @@
 # Build stage
 FROM python:3.12-slim as builder
 
+# Labels
+LABEL maintainer="dsbraz@dsbraz.com"
+LABEL version="0.1"
+
 WORKDIR /app
 
 # Install dependencies

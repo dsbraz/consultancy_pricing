@@ -5,16 +5,13 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      # For development: mount source code
-      - ./app:/app/app
-      - ./frontend:/app/frontend
     environment:
       - PYTHONUNBUFFERED=1
-      - ENVIRONMENT=development
-      - CORS_ORIGINS=*
+      - ENVIRONMENT=production
+      # CORS: specify allowed origins (comma-separated)
+      - CORS_ORIGINS=${CORS_ORIGINS}
       # PostgreSQL connection
-      - INSTANCE_CONNECTION_NAME=postgres:5432
+      - INSTANCE_CONNECTION_NAME=${INSTANCE_CONNECTION_NAME}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_NAME=${DB_NAME}
@@ -48,5 +45,3 @@ services:
 
 volumes:
   postgres_data:
-
-

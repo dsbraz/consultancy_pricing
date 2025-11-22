@@ -212,6 +212,52 @@ docker-compose ps
 - Docker Desktop instalado e em execução
 - Docker Compose (incluso no Docker Desktop)
 
+### Configuração de Ambiente
+
+#### 1. Criar arquivo `.env`
+
+Copie o arquivo `.env.example` para `.env`:
+
+```bash
+cp .env.example .env
+```
+
+#### 2. Configurar variáveis de ambiente
+
+Edite o arquivo `.env` conforme necessário:
+
+```bash
+# Ambiente (development ou production)
+ENVIRONMENT=development
+
+# CORS: use "*" para desenvolvimento, especifique domínios para produção
+CORS_ORIGINS=*
+
+# Credenciais do banco de dados
+DB_USER=postgres
+DB_PASS=postgres
+DB_NAME=consultancy_pricing
+```
+
+> [!IMPORTANT]
+> O arquivo `.env` não é versionado no Git por questões de segurança. Nunca commite credenciais ou dados sensíveis!
+
+### Ambientes: Desenvolvimento vs Produção
+
+O projeto oferece duas configurações Docker:
+
+#### **Desenvolvimento** (`docker-compose.yml`)
+- ✅ Hot-reload de código (volumes montados)
+- ✅ CORS permissivo (`*`)
+- ✅ Logs detalhados
+- ✅ Ideal para Docker Desktop local
+
+#### **Produção** (`docker-compose.prod.yml`)
+- 🔒 Código fixo na imagem (sem volumes)
+- 🔒 CORS restrito (domínios específicos)
+- 🔒 Configurações de segurança
+- 🔒 Pronto para deploy em nuvem
+
 ### Desenvolvimento Local com Docker
 
 #### Opção 1: Usando Docker Compose (Recomendado)
@@ -268,15 +314,55 @@ docker stop consultancy-pricing
 docker rm consultancy-pricing
 ```
 
+### Deploy em Produção
+
+Para executar em ambiente de produção usando `docker-compose.prod.yml`:
+
+#### 1. Configurar variáveis de produção
+
+Edite o arquivo `.env` com valores de produção:
+
+```bash
+ENVIRONMENT=production
+CORS_ORIGINS=https://seudominio.com,https://www.seudominio.com
+DB_USER=seu_usuario_prod
+DB_PASS=senha_segura_aqui
+DB_NAME=consultancy_pricing
+```
+
+#### 2. Executar com configuração de produção
+
+```bash
+# Build e iniciar com configuração de produção
+docker-compose -f docker-compose.prod.yml up --build -d
+
+# Ver logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Parar
+docker-compose -f docker-compose.prod.yml down
+```
+
+> [!WARNING]
+> Em produção, use senhas fortes e nunca use as credenciais padrão do `.env.example`!
+
+> [!TIP]
+> Para deploy em nuvem (Cloud Run, ECS, etc.), considere usar secrets managers como Google Secret Manager ou AWS Secrets Manager ao invés de arquivos `.env`.
+
+### Troubleshooting
+
 ### Banco de Dados
 
 A aplicação usa PostgreSQL rodando em container Docker. Os dados são persistidos em um volume Docker chamado `postgres_data`.
 
-**Credenciais padrão:**
+**Credenciais padrão (desenvolvimento):**
 - Host: `postgres:5432`
 - Usuário: `postgres`
 - Senha: `postgres`
 - Database: `consultancy_pricing`
+
+> [!CAUTION]
+> Altere as credenciais padrão antes de fazer deploy em produção!
 
 Para alterar as credenciais, edite as variáveis de ambiente em `docker-compose.yml`.
 

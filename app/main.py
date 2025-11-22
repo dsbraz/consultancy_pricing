@@ -5,14 +5,23 @@ from sqlalchemy import text
 from app.database import engine, Base, SessionLocal
 from app.routers import professionals, projects, offers
 import os
+import logging
+import sys
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Consultancy Pricing API")
 
+# CORS configuration based on environment
+cors_origins = os.environ.get("CORS_ORIGINS", "*")
+if cors_origins == "*":
+    origins_list = ["*"]
+else:
+    origins_list = [origin.strip() for origin in cors_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development, allow all. In prod, specify origin.
+    allow_origins=origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +33,13 @@ app.include_router(projects.router, tags=["Projects"])
 
 frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
 app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 @app.get("/")
 def read_root():
