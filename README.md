@@ -39,7 +39,7 @@ O Sistema de Precificação de Consultoria é uma aplicação web que permite ge
 ### Backend
 - **FastAPI**: Framework web moderno e de alta performance
 - **SQLAlchemy**: ORM para gerenciamento de banco de dados
-- **SQLite**: Banco de dados relacional
+- **PostgreSQL**: Banco de dados relacional
 - **Pydantic**: Validação de dados e schemas
 - **Uvicorn**: Servidor ASGI para desenvolvimento
 - **Gunicorn**: Servidor WSGI para produção
@@ -50,8 +50,9 @@ O Sistema de Precificação de Consultoria é uma aplicação web que permite ge
 - **Fetch API**: Comunicação com a API REST
 
 ### Infraestrutura
-- **Google App Engine**: Plataforma de deploy em nuvem
-- **Python 3.x**: Linguagem de programação principal
+- **Docker**: Containerização para deploy local e em nuvem
+- **PostgreSQL**: Banco de dados em container
+- **Python 3.12**: Linguagem de programação principal
 
 ## 📁 Estrutura do Projeto
 
@@ -72,7 +73,8 @@ consultancy_pricing/
 │   │   └── app.js       # Aplicação principal
 │   └── index.html       # Página principal
 ├── tests/               # Testes automatizados
-├── app.yaml             # Configuração do Google App Engine
+├── Dockerfile           # Configuração Docker
+├── docker-compose.yml   # Orquestração de containers
 ├── requirements.txt     # Dependências Python
 └── README.md            # Este arquivo
 ```
@@ -154,13 +156,159 @@ http://localhost:8000/frontend/index.html
 
 O sistema implementa proteção contra XSS (Cross-Site Scripting) através de sanitização de inputs no frontend, garantindo que scripts maliciosos não sejam executados.
 
-## 🌐 Deploy
+## ❤️‍🩹 Monitoramento e Health Checks
 
-O projeto está configurado para deploy no Google App Engine. O arquivo `app.yaml` contém as configurações necessárias para o ambiente de produção.
+### Endpoint de Health Check
 
-Para fazer deploy:
+A aplicação fornece um endpoint `/health` que verifica:
+- Status da API
+- Conectividade com o banco de dados PostgreSQL
+
+**Acesso direto:**
+```
+GET http://localhost:8080/health
+```
+
+**Resposta (saudável):**
+```json
+{
+  "status": "healthy",
+  "database": "connected"
+}
+```
+
+**Resposta (não saudável):**
+```json
+{
+  "status": "unhealthy",
+  "database": "disconnected",
+  "error": "mensagem de erro"
+}
+```
+
+### Health Checks no Docker
+
+O Dockerfile e docker-compose.yml incluem configurações de health check:
+
+**Dockerfile:**
+- Intervalo: 30 segundos
+- Timeout: 10 segundos
+- Período de inicialização: 40 segundos
+- Retries: 3
+
+**Docker Compose:**
+- App depende do PostgreSQL estar saudável antes de iniciar
+- PostgreSQL usa `pg_isready` para verificar disponibilidade
+
+**Ver status:**
 ```bash
-gcloud app deploy
+docker-compose ps
+# Mostra (healthy) ou (unhealthy) ao lado de cada serviço
+```
+
+## 🐳 Deploy com Docker
+
+### Pré-requisitos
+- Docker Desktop instalado e em execução
+- Docker Compose (incluso no Docker Desktop)
+
+### Desenvolvimento Local com Docker
+
+#### Opção 1: Usando Docker Compose (Recomendado)
+
+1. **Build e iniciar os containers**:
+```bash
+docker-compose up --build
+```
+
+2. **Executar em background**:
+```bash
+docker-compose up -d
+```
+
+3. **Acessar a aplicação**:
+```
+http://localhost:8080/frontend/index.html
+```
+
+4. **Ver logs**:
+```bash
+docker-compose logs -f app
+```
+
+5. **Parar os containers**:
+```bash
+docker-compose down
+```
+
+#### Opção 2: Usando Docker diretamente
+
+1. **Build da imagem**:
+```bash
+docker build -t consultancy-pricing .
+```
+
+2. **Executar o container**:
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  --name consultancy-pricing \
+  consultancy-pricing
+```
+
+3. **Ver logs**:
+```bash
+docker logs -f consultancy-pricing
+```
+
+4. **Parar e remover o container**:
+```bash
+docker stop consultancy-pricing
+docker rm consultancy-pricing
+```
+
+### Banco de Dados
+
+A aplicação usa PostgreSQL rodando em container Docker. Os dados são persistidos em um volume Docker chamado `postgres_data`.
+
+**Credenciais padrão:**
+- Host: `postgres:5432`
+- Usuário: `postgres`
+- Senha: `postgres`
+- Database: `consultancy_pricing`
+
+Para alterar as credenciais, edite as variáveis de ambiente em `docker-compose.yml`.
+
+### Troubleshooting
+
+**Porta 8080 já está em uso:**
+```bash
+# Encontrar o processo usando a porta
+lsof -i :8080
+# Ou alterar a porta no docker-compose.yml (ex: "8081:8080")
+```
+
+**Erro de conexão com PostgreSQL:**
+```bash
+# Verificar se o container do PostgreSQL está rodando
+docker-compose ps
+
+# Ver logs do PostgreSQL
+docker-compose logs postgres
+```
+
+**Rebuild forçado:**
+```bash
+docker-compose down -v  # Remove volumes também
+docker-compose build --no-cache
+docker-compose up
+```
+
+**Resetar banco de dados:**
+```bash
+docker-compose down -v  # Remove volumes (apaga dados!)
+docker-compose up --build
 ```
 
 ## 📝 Licença

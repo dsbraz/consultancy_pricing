@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
+from sqlalchemy import text
+from app.database import engine, Base, SessionLocal
 from app.routers import professionals, projects, offers
 import os
 
@@ -27,3 +28,26 @@ app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="fro
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Consultancy Pricing API"}
+
+@app.get("/health")
+def health_check():
+    """
+    Health check endpoint for Docker and monitoring systems.
+    Verifies API is running and database is accessible.
+    """
+    try:
+        # Check database connectivity
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        
+        return {
+            "status": "healthy",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e)
+        }
