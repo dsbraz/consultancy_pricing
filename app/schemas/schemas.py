@@ -7,7 +7,7 @@ class ProfessionalBase(BaseModel):
     name: str = Field(..., min_length=1)
     role: str = Field(..., min_length=1)
     level: str = Field(..., min_length=1)
-    is_vacancy: bool = False
+    is_template: bool = False
     hourly_cost: float = Field(default=0.0, ge=0.0)
 
     @field_validator('pid', 'name', 'role', 'level')
@@ -25,7 +25,7 @@ class ProfessionalUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     role: Optional[str] = Field(None, min_length=1)
     level: Optional[str] = Field(None, min_length=1)
-    is_vacancy: Optional[bool] = None
+    is_template: Optional[bool] = None
     hourly_cost: Optional[float] = Field(None, ge=0.0)
 
     @field_validator('pid', 'name', 'role', 'level')

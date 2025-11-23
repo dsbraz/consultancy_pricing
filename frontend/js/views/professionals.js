@@ -30,7 +30,7 @@ export async function renderProfessionals(container) {
                         <th class="sortable" data-column="name">Nome <span class="material-icons sort-icon">arrow_upward</span></th>
                         <th class="sortable" data-column="role">Função <span class="material-icons sort-icon">arrow_upward</span></th>
                         <th class="sortable" data-column="level">Nível <span class="material-icons sort-icon">arrow_upward</span></th>
-                        <th class="sortable" data-column="is_vacancy">Tipo <span class="material-icons sort-icon">arrow_upward</span></th>
+                        <th class="sortable" data-column="is_template">Tipo <span class="material-icons sort-icon">arrow_upward</span></th>
                         <th class="sortable" data-column="hourly_cost">Custo Horário <span class="material-icons sort-icon">arrow_upward</span></th>
                         <th>Ações</th>
                     </tr>
@@ -53,7 +53,7 @@ export async function renderProfessionals(container) {
                         <label>Arquivo CSV</label>
                         <input type="file" id="csv-file-input" accept=".csv">
                         <small style="display: block; margin-top: 0.5rem; color: var(--color-text-secondary);">
-                            Formato esperado: pid,name,role,level,is_vacancy,hourly_cost
+                            Formato esperado: pid,name,role,level,is_template,hourly_cost
                             <br>
                             <a href="professionals_example.csv" download style="color: var(--color-primary);">
                                 📥 Baixar arquivo de exemplo
@@ -77,7 +77,7 @@ export async function renderProfessionals(container) {
         <div id="modal-prof" class="modal-overlay">
             <div class="modal-container">
                 <div class="modal-header">
-                    <h3 id="modal-prof-title">Novo Profissional / Vaga</h3>
+                    <h3 id="modal-prof-title">Novo Profissional / Template</h3>
                     <button class="modal-close" id="btn-close-modal-prof">
                         <span class="material-icons">close</span>
                     </button>
@@ -103,7 +103,7 @@ export async function renderProfessionals(container) {
                         <label>Tipo</label>
                         <select id="prof-type">
                             <option value="false">Pessoa</option>
-                            <option value="true">Vaga</option>
+                            <option value="true">Template</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -170,7 +170,7 @@ export async function renderProfessionals(container) {
 
     document.getElementById('btn-new-prof').onclick = () => {
         editingId = null;
-        document.getElementById('modal-prof-title').textContent = 'Novo Profissional / Vaga';
+        document.getElementById('modal-prof-title').textContent = 'Novo Profissional / Template';
         document.getElementById('btn-save-prof').textContent = 'Criar';
         clearForm();
         modal.classList.add('active');
@@ -286,17 +286,17 @@ export async function renderProfessionals(container) {
         const name = document.getElementById('prof-name').value;
         const role = document.getElementById('prof-role').value;
         const level = document.getElementById('prof-level').value;
-        const is_vacancy = document.getElementById('prof-type').value === 'true';
+        const is_template = document.getElementById('prof-type').value === 'true';
         const hourly_cost = parseFloat(document.getElementById('prof-cost').value);
 
         if (pid && name && role && level) {
             if (editingId) {
                 // Update
-                await api.put(`/professionals/${editingId}`, { pid, name, role, level, is_vacancy, hourly_cost });
+                await api.put(`/professionals/${editingId}`, { pid, name, role, level, is_template, hourly_cost });
                 editingId = null;
             } else {
                 // Create
-                await api.post('/professionals/', { pid, name, role, level, is_vacancy, hourly_cost });
+                await api.post('/professionals/', { pid, name, role, level, is_template, hourly_cost });
             }
 
             modal.classList.remove('active');
@@ -331,7 +331,7 @@ export async function renderProfessionals(container) {
                 <td>${escapeHtml(p.name)}</td>
                 <td>${escapeHtml(p.role)}</td>
                 <td>${escapeHtml(p.level)}</td>
-                <td>${p.is_vacancy ? 'Vaga' : 'Pessoa'}</td>
+                <td>${p.is_template ? 'Template' : 'Pessoa'}</td>
                 <td>${formatCurrency(p.hourly_cost)}</td>
                 <td>
                     <button class="btn btn-sm" data-action="edit" data-professional-id="${p.id}">Editar</button>
@@ -369,7 +369,7 @@ export async function renderProfessionals(container) {
             document.getElementById('prof-name').value = prof.name;
             document.getElementById('prof-role').value = prof.role;
             document.getElementById('prof-level').value = prof.level;
-            document.getElementById('prof-type').value = prof.is_vacancy.toString();
+            document.getElementById('prof-type').value = prof.is_template.toString();
             document.getElementById('prof-cost').value = prof.hourly_cost;
 
             modal.classList.add('active');

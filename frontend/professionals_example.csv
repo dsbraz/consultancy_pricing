@@ -1,4 +1,4 @@
-pid,name,role,level,is_vacancy,hourly_cost
+pid,name,role,level,is_template,hourly_cost
 PROF001,João Silva,Desenvolvedor,Sênior,false,150.00
 PROF002,Maria Santos,Designer,Pleno,false,120.00
 VAC001,Vaga Desenvolvedor,Desenvolvedor,Júnior,true,80.00

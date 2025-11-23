@@ -2,13 +2,13 @@ import requests
 import os
 
 # Test CSV import functionality
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 def test_csv_import():
     """Test importing professionals from CSV file"""
     
     # Create a test CSV file
-    csv_content = """pid,name,role,level,is_vacancy,hourly_cost
+    csv_content = """pid,name,role,level,is_template,hourly_cost
 PROF001,Test Professional 1,Desenvolvedor,Sênior,false,150.00
 PROF002,Test Professional 2,Designer,Pleno,false,120.00
 VAC001,Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
@@ -53,7 +53,7 @@ VAC001,Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
     
     # Test update by importing again with modified data
     print("\n\nTesting update functionality...")
-    csv_content_updated = """pid,name,role,level,is_vacancy,hourly_cost
+    csv_content_updated = """pid,name,role,level,is_template,hourly_cost
 PROF001,Test Professional 1,Desenvolvedor,Pleno,false,130.00
 PROF002,Test Professional 2,Designer,Sênior,false,160.00"""
     
@@ -83,7 +83,7 @@ PROF002,Test Professional 2,Designer,Sênior,false,160.00"""
             "name": "Duplicate Professional",
             "role": "Tester",
             "level": "Junior",
-            "is_vacancy": False,
+            "is_template": False,
             "hourly_cost": 100.0
         }
         response = requests.post(f"{BASE_URL}/professionals/", json=duplicate_prof)

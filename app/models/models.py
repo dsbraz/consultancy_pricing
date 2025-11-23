@@ -10,7 +10,7 @@ class Professional(Base):
     name = Column(String, index=True, nullable=False)
     role = Column(String, nullable=False)
     level = Column(String, nullable=False)
-    is_vacancy = Column(Boolean, default=False, nullable=False)
+    is_template = Column(Boolean, default=False, nullable=False)
     hourly_cost = Column(Float, default=0.0, nullable=False)
 
     project_allocations = relationship("ProjectAllocation", back_populates="professional")

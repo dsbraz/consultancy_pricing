@@ -20,7 +20,7 @@ def create_professional(professional: schemas.ProfessionalCreate, db: Session = 
         name=professional.name,
         role=professional.role,
         level=professional.level,
-        is_vacancy=professional.is_vacancy,
+        is_template=professional.is_template,
         hourly_cost=professional.hourly_cost
     )
     db.add(db_professional)
@@ -70,7 +70,7 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
     """
     Import professionals from CSV file.
     Import professionals from CSV file.
-    Expected CSV format: pid,name,role,level,is_vacancy,hourly_cost
+    Expected CSV format: pid,name,role,level,is_template,hourly_cost
     If a professional with the same pid exists, it will be updated.
     Otherwise, a new professional will be created.
     """
@@ -101,9 +101,9 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             role = row['role'].strip()
             level = row['level'].strip()
             
-            # Parse is_vacancy (default to False if not provided or invalid)
-            is_vacancy_str = row.get('is_vacancy', 'false').strip().lower()
-            is_vacancy = is_vacancy_str in ['true', '1', 'yes', 'sim', 'verdadeiro']
+            # Parse is_template (default to False if not provided or invalid)
+            is_template_str = row.get('is_template', row.get('is_vacancy', 'false')).strip().lower()
+            is_template = is_template_str in ['true', '1', 'yes', 'sim', 'verdadeiro']
             
             # Parse hourly_cost (default to 0.0 if not provided or invalid)
             try:
@@ -119,7 +119,7 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
                 existing_prof.name = name
                 existing_prof.role = role
                 existing_prof.level = level
-                existing_prof.is_vacancy = is_vacancy
+                existing_prof.is_template = is_template
                 existing_prof.hourly_cost = hourly_cost
                 updated_count += 1
             else:
@@ -128,7 +128,7 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
                     name=name,
                     role=role,
                     level=level,
-                    is_vacancy=is_vacancy,
+                    is_template=is_template,
                     hourly_cost=hourly_cost
                 )
                 db.add(new_prof)
