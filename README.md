@@ -50,9 +50,11 @@ O Sistema de Precificação de Consultoria é uma aplicação web que permite ge
 - **Fetch API**: Comunicação com a API REST
 
 ### Infraestrutura
-- **Docker**: Containerização para deploy local e em nuvem
-- **PostgreSQL**: Banco de dados em container
-- **Python 3.12**: Linguagem de programação principal
+- **Docker**: Containerização para desenvolvimento e produção
+- **PostgreSQL**: Banco de dados relacional (local e produção)
+- **Python 3.12**: Linguagem de programação
+- **Google Cloud Run**: Hosting serverless para produção
+- **Supabase**: PostgreSQL gerenciado para produção
 
 ## 📁 Estrutura do Projeto
 
@@ -81,11 +83,13 @@ consultancy_pricing/
 
 ## 🚀 Como Executar
 
-### Pré-requisitos
-- Python 3.8 ou superior
-- pip (gerenciador de pacotes Python)
+### Desenvolvimento Local
 
-### Instalação
+**Pré-requisitos:**
+- Docker Desktop instalado e em execução
+- Git
+
+**Passos:**
 
 1. Clone o repositório:
 ```bash
@@ -93,19 +97,25 @@ git clone <url-do-repositorio>
 cd consultancy_pricing
 ```
 
-2. Instale as dependências:
+2. Inicie o ambiente de desenvolvimento:
 ```bash
-pip install -r requirements.txt
+docker-compose up --build
 ```
 
-3. Execute o servidor de desenvolvimento:
-```bash
-python3 -m uvicorn app.main:app --reload --port 8000
+3. Acesse a aplicação:
+```
+http://localhost:8080/frontend/index.html
 ```
 
-4. Acesse a aplicação em seu navegador:
-```
-http://localhost:8000/frontend/index.html
+O ambiente inclui:
+- ✅ Aplicação FastAPI rodando na porta 8080
+- ✅ PostgreSQL em container (dados persistidos)
+- ✅ Hot-reload automático ao editar código
+- ✅ Banco de dados criado automaticamente
+
+**Parar o ambiente:**
+```bash
+docker-compose down
 ```
 
 ## 📊 Modelo de Dados
@@ -242,21 +252,21 @@ DB_NAME=consultancy_pricing
 > [!IMPORTANT]
 > O arquivo `.env` não é versionado no Git por questões de segurança. Nunca commite credenciais ou dados sensíveis!
 
-### Ambientes: Desenvolvimento vs Produção
+### Stack de Desenvolvimento e Produção
 
-O projeto oferece duas configurações Docker:
-
-#### **Desenvolvimento** (`docker-compose.yml`)
+#### **Desenvolvimento Local** (`docker-compose.yml`)
+- ✅ PostgreSQL em container Docker
 - ✅ Hot-reload de código (volumes montados)
 - ✅ CORS permissivo (`*`)
 - ✅ Logs detalhados
-- ✅ Ideal para Docker Desktop local
+- ✅ Dados persistidos em volume Docker
 
-#### **Produção** (`docker-compose.prod.yml`)
-- 🔒 Código fixo na imagem (sem volumes)
-- 🔒 CORS restrito (domínios específicos)
-- 🔒 Configurações de segurança
-- 🔒 Pronto para deploy em nuvem
+#### **Produção** (Google Cloud Run + Supabase)
+- 🚀 Aplicação serverless no Cloud Run
+- 🗄️ PostgreSQL gerenciado no Supabase
+- 🔒 HTTPS automático
+- 📈 Auto-scaling
+- 💰 ~$1-2/mês (pay-per-use)
 
 ### Desenvolvimento Local com Docker
 
@@ -318,134 +328,116 @@ docker rm consultancy-pricing
 
 ### Deploy em Produção
 
-Para executar em ambiente de produção:
+**Stack Oficial:** Google Cloud Run + Supabase
 
 > [!TIP]
-> **Stack Recomendada:** Use **[Google Cloud Run](https://cloud.google.com/run)** para a aplicação e **[Supabase](https://supabase.com)** para o banco de dados.
->
-> Esta combinação é serverless, escala automaticamente e custa apenas ~$1-2/mês para baixo/médio tráfego.
->
-> 🚀 **[Veja o guia completo de deployment](DEPLOYMENT.md)**
-> 
-> ✅ **[Checklist passo a passo](DEPLOYMENT_CHECKLIST.md)**
+> **Vantagens desta stack:**
+> - 🚀 **Serverless**: Zero configuração de servidor
+> - 📈 **Auto-scaling**: De 0 a 1000+ instâncias automaticamente
+> - 💰 **Econômico**: ~$1-2/mês para baixo/médio tráfego
+> - 🔒 **Seguro**: HTTPS automático, backups inclusos
+> - ⚡ **Rápido**: Deploy em ~5 minutos
 
-#### 1. Provisionar banco de dados gerenciado
+**Documentação:**
+- 🚀 **[Guia completo de deployment](DEPLOYMENT.md)** - Passo a passo detalhado
+- ✅ **[Checklist](DEPLOYMENT_CHECKLIST.md)** - Não esqueça nenhum passo
+- 📁 **[Guia de arquivos .env](ENV_GUIDE.md)** - Configuração de variáveis
 
-Escolha seu provedor e crie uma instância PostgreSQL:
-
-**Google Cloud SQL:**
+**Deploy rápido:**
 ```bash
-gcloud sql instances create consultancy-pricing-db \
-  --database-version=POSTGRES_15 \
-  --tier=db-f1-micro \
-  --region=us-central1
-
-gcloud sql databases create consultancy_pricing \
-  --instance=consultancy-pricing-db
+# 1. Configurar Supabase (5 min)
+# 2. Copiar credenciais para .env.cloudrun
+cp .env.cloudrun.example .env.cloudrun
+# 3. Deploy!
+./deploy-cloudrun.sh
 ```
 
-**AWS RDS:**
+---
+
+### Desenvolvimento Sem Docker (Avançado)
+
+<details>
+<summary>Se você preferir rodar sem Docker (não recomendado)</summary>
+
+**Pré-requisitos:**
+- Python 3.12
+- PostgreSQL instalado localmente
+
+**Passos:**
 ```bash
-aws rds create-db-instance \
-  --db-instance-identifier consultancy-pricing-db \
-  --db-instance-class db.t3.micro \
-  --engine postgres \
-  --engine-version 15.4 \
-  --allocated-storage 20
+# Instalar dependências
+pip install -r requirements.txt
+
+# Configurar PostgreSQL local
+createdb consultancy_pricing
+
+# Configurar variáveis de ambiente
+export INSTANCE_CONNECTION_NAME=localhost:5432
+export DB_USER=postgres
+export DB_PASS=postgres
+export DB_NAME=consultancy_pricing
+
+# Executar
+uvicorn app.main:app --reload --port 8080
 ```
 
-**Azure Database:**
-```bash
-az postgres server create \
-  --resource-group myResourceGroup \
-  --name consultancy-pricing-db \
-  --location eastus \
-  --sku-name B_Gen5_1 \
-  --version 15
-```
+Acesse: `http://localhost:8080/frontend/index.html`
 
-#### 2. Configurar variáveis de produção
+</details>
 
-Edite o arquivo `.env` com valores de produção:
+---
 
-```bash
-ENVIRONMENT=production
-CORS_ORIGINS=https://seudominio.com,https://www.seudominio.com
+## 🗄️ Banco de Dados
 
-# Exemplo para Cloud SQL (IP privado):
-INSTANCE_CONNECTION_NAME=10.x.x.x:5432
+### Desenvolvimento Local
 
-# Exemplo para AWS RDS:
-# INSTANCE_CONNECTION_NAME=mydb.abc123.us-east-1.rds.amazonaws.com:5432
+No ambiente de desenvolvimento (`docker-compose up`), o PostgreSQL roda em um container Docker:
 
-# Exemplo para Azure:
-# INSTANCE_CONNECTION_NAME=myserver.postgres.database.azure.com:5432
-
-DB_USER=seu_usuario_prod
-DB_PASS=senha_segura_aqui
-DB_NAME=consultancy_pricing
-```
-
-#### 3. Configurar conectividade
-
-**Opção A: VPC/Rede Privada** (Recomendado)
-- Configure o container na mesma VPC que o banco de dados
-- Use IP privado para conexão
-
-**Opção B: Cloud SQL Proxy** (Google Cloud)
-```bash
-# Adicione ao Dockerfile se usar Cloud SQL Proxy
-RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
-RUN chmod +x cloud_sql_proxy
-```
-
-**Opção C: IP Público** (Menos seguro)
-- Configure firewall do banco para aceitar IP do container
-- Use SSL/TLS obrigatoriamente
-
-#### 4. Executar com configuração de produção
-
-```bash
-# Build e iniciar com configuração de produção
-docker compose -f docker-compose.prod.yml up --build -d
-
-# Ver logs
-docker compose -f docker-compose.prod.yml logs -f
-
-# Parar
-docker compose -f docker-compose.prod.yml down
-```
-
-> [!WARNING]
-> Em produção, use senhas fortes e nunca use as credenciais padrão do `.env.example`!
-
-> [!TIP]
-> Para deploy em nuvem (Cloud Run, ECS, etc.), considere usar secrets managers como Google Secret Manager ou AWS Secrets Manager ao invés de arquivos `.env`.
-
-### Troubleshooting
-
-### Banco de Dados
-
-A aplicação usa PostgreSQL rodando em container Docker. Os dados são persistidos em um volume Docker chamado `postgres_data`.
-
-**Credenciais padrão (desenvolvimento):**
+**Credenciais padrão:**
 - Host: `postgres:5432`
 - Usuário: `postgres`
 - Senha: `postgres`
 - Database: `consultancy_pricing`
 
-> [!CAUTION]
-> Altere as credenciais padrão antes de fazer deploy em produção!
+**Dados persistidos** em volume Docker (`postgres_data`). Para resetar o banco:
+```bash
+docker-compose down -v  # CUIDADO: Apaga todos os dados!
+docker-compose up --build
+```
 
-Para alterar as credenciais, edite as variáveis de ambiente em `docker-compose.yml`.
+### Produção
 
-### Troubleshooting
+Em produção, usamos **Supabase** como banco de dados PostgreSQL gerenciado:
+
+- ✅ Backups automáticos
+- ✅ Point-in-time recovery
+- ✅ SSL/TLS por padrão
+- ✅ Connection pooling (PgBouncer)
+- ✅ Monitoramento integrado
+- ✅ Plano gratuito: 500MB
+
+Veja o [Guia de Deployment](DEPLOYMENT.md) para configuração completa.
+
+## 🔐 Segurança
+
+O sistema implementa proteção contra XSS (Cross-Site Scripting) através de sanitização de inputs no frontend, garantindo que scripts maliciosos não sejam executados.
+
+**Práticas de segurança implementadas:**
+- ✅ Sanitização de inputs no frontend
+- ✅ Validação de dados com Pydantic
+- ✅ CORS configurável
+- ✅ Ambiente de variáveis não versionadas
+- ✅ SSL/TLS em produção (Cloud Run + Supabase)
+
+## ❤️‍🩹 Monitoramento
 
 **Porta 8080 já está em uso:**
 ```bash
 # Encontrar o processo usando a porta
 lsof -i :8080
-# Ou alterar a porta no docker-compose.yml (ex: "8081:8080")
+
+# Ou alterar a porta no docker-compose.yml
+# Mude de "8080:8080" para "8081:8080"
 ```
 
 **Erro de conexão com PostgreSQL:**
@@ -455,19 +447,31 @@ docker-compose ps
 
 # Ver logs do PostgreSQL
 docker-compose logs postgres
+
+# Reiniciar PostgreSQL
+docker-compose restart postgres
 ```
 
-**Rebuild forçado:**
+**Rebuild forçado (resolve maioria dos problemas):**
 ```bash
-docker-compose down -v  # Remove volumes também
-docker-compose build --no-cache
-docker-compose up
+docker-compose down -v  # Remove containers e volumes
+docker-compose build --no-cache  # Build do zero
+docker-compose up  # Iniciar novamente
 ```
 
-**Resetar banco de dados:**
+**Resetar banco de dados (APAGA TODOS OS DADOS):**
 ```bash
-docker-compose down -v  # Remove volumes (apaga dados!)
+docker-compose down -v
 docker-compose up --build
+```
+
+**Ver logs em tempo real:**
+```bash
+# Todos os logs
+docker-compose logs -f
+
+# Apenas da aplicação
+docker-compose logs -f app
 ```
 
 ## 📝 Licença
