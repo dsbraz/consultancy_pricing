@@ -44,6 +44,9 @@ class PricingService:
             for weekly_alloc in allocation.weekly_allocations:
                 hours = weekly_alloc.hours_allocated
                 
+                week_key = weekly_alloc.week_number
+                month_key = weekly_alloc.week_start_date.strftime("%Y-%m")
+                
                 week_cost = hours * hourly_cost
                 week_selling = hours * selling_rate
                 
