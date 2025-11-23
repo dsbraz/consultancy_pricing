@@ -318,27 +318,16 @@ docker rm consultancy-pricing
 
 ### Deploy em Produção
 
-Para executar em ambiente de produção usando `docker-compose.prod.yml`:
-
-> [!IMPORTANT]
-> Em produção, a aplicação usa um **banco de dados gerenciado**. **Recomendamos o [Supabase](https://supabase.com)** para uma configuração rápida e gratuita.
-> 
-> 📖 **[Veja o guia completo de deployment com Supabase](DEPLOYMENT.md)**
+Para executar em ambiente de produção:
 
 > [!TIP]
-> **Recomendado:** Use **[Google Cloud Run](https://cloud.google.com/run)** para hospedar a aplicação! É serverless, escala automaticamente e extremamente barato (~$1-2/mês).
+> **Stack Recomendada:** Use **[Google Cloud Run](https://cloud.google.com/run)** para a aplicação e **[Supabase](https://supabase.com)** para o banco de dados.
 >
-> 🚀 **[Guia completo: Deploy no Cloud Run + Supabase](CLOUDRUN_DEPLOYMENT.md)**
-
-<details>
-<summary>Outras opções de banco de dados gerenciado</summary>
-
-Você também pode usar:
-- Google Cloud SQL
-- AWS RDS
-- Azure Database for PostgreSQL
-
-</details>
+> Esta combinação é serverless, escala automaticamente e custa apenas ~$1-2/mês para baixo/médio tráfego.
+>
+> 🚀 **[Veja o guia completo de deployment](DEPLOYMENT.md)**
+> 
+> ✅ **[Checklist passo a passo](DEPLOYMENT_CHECKLIST.md)**
 
 #### 1. Provisionar banco de dados gerenciado
 

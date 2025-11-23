@@ -1,73 +1,141 @@
-# Guia de Deploy em Produção com Supabase
+# Guia de Deploy em Produção
 
-Este guia descreve como fazer o deploy da aplicação **Consultancy Pricing** em produção utilizando o Supabase como banco de dados PostgreSQL gerenciado.
+Este guia descreve como fazer o deploy da aplicação **Consultancy Pricing** em produção usando **Google Cloud Run** (aplicação) e **Supabase** (banco de dados PostgreSQL).
 
-## 📋 Pré-requisitos
+## 📋 Visão Geral da Arquitetura
 
-- Conta no [Supabase](https://supabase.com)
-- Docker e Docker Compose instalados no servidor de produção
-- Domínio configurado (opcional, mas recomendado)
+```
+Internet
+   ↓
+Google Cloud Run (sua aplicação FastAPI)
+   ↓
+Supabase (banco de dados PostgreSQL)
+```
 
-## 🗄️ Configuração do Supabase
+**Vantagens:**
+- ✅ **Serverless**: Escala automaticamente de 0 a milhares de instâncias
+- ✅ **Pay-per-use**: Paga apenas quando recebe requisições
+- ✅ **Fácil deploy**: Um comando para publicar
+- ✅ **HTTPS gratuito**: SSL/TLS automático
+- ✅ **Global**: CDN e edge locations do Google
 
-### 1. Criar Projeto no Supabase
+## 🎯 Pré-requisitos
 
-1. Acesse [https://app.supabase.com](https://app.supabase.com)
-2. Clique em **"New Project"**
+### 1. Conta Google Cloud
+
+1. Crie uma conta em [cloud.google.com](https://cloud.google.com)
+2. Ative a **conta de faturamento** (crédito gratuito de $300 para novos usuários)
+3. Crie um novo projeto ou use um existente
+
+### 2. Conta Supabase
+
+1. Crie uma conta em [supabase.com](https://supabase.com)
+2. Crie um novo projeto
+3. Anote as credenciais de conexão
+
+### 3. Ferramentas Locais
+
+Instale o Google Cloud SDK:
+
+**macOS:**
+```bash
+brew install google-cloud-sdk
+```
+
+**Linux:**
+```bash
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+```
+
+**Windows:**
+Baixe o instalador em [cloud.google.com/sdk/docs/install](https://cloud.google.com/sdk/docs/install)
+
+## 🚀 Passo a Passo
+
+### Passo 1: Configurar Supabase
+
+1. Acesse [app.supabase.com](https://app.supabase.com)
+2. Clique em **New Project**
 3. Preencha:
-   - **Name**: `consultancy-pricing` (ou nome de sua escolha)
-   - **Database Password**: Uma senha forte (guarde-a!)
-   - **Region**: Escolha a região mais próxima dos seus usuários
-4. Aguarde a criação do projeto (~2 minutos)
+   - Name: `consultancy-pricing`
+   - Database Password: (escolha uma senha forte)
+   - Region: escolha a mais próxima (ex: `South America (São Paulo)`)
 
-### 2. Obter Credenciais de Conexão
+4. Aguarde a criação (~2 minutos)
 
-1. No dashboard do projeto, vá em **Settings** > **Database**
-2. Na seção **"Connection string"**, selecione **"URI"**
-3. Você verá algo como:
+5. Vá em **Settings** > **Database** > **Connection string** > **URI**
+
+6. Copie a URI que terá este formato:
    ```
-   postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
+   postgresql://postgres:[PASSWORD]@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
    ```
 
-4. Extraia as informações:
+7. Extraia as informações:
    - **Host**: `db.xxxxxxxxxxxxx.supabase.co:5432`
    - **User**: `postgres`
-   - **Password**: A senha que você definiu
+   - **Password**: sua senha
    - **Database**: `postgres`
 
-### 3. Configurar Políticas de Acesso (Opcional)
+### Passo 2: Configurar Google Cloud
 
-Por padrão, o Supabase protege as tabelas com Row Level Security (RLS). Como esta aplicação usa a própria API FastAPI para controle de acesso, recomenda-se **desabilitar o RLS** para as tabelas:
+#### 2.1. Fazer login no Google Cloud
 
-1. Vá em **Table Editor**
-2. Para cada tabela criada pela aplicação, clique em **RLS** e desabilite
-3. Ou execute no **SQL Editor**:
-   ```sql
-   ALTER TABLE professionals DISABLE ROW LEVEL SECURITY;
-   ALTER TABLE projects DISABLE ROW LEVEL SECURITY;
-   ALTER TABLE offer DISABLE ROW LEVEL SECURITY;
-   ALTER TABLE offer_profissional DISABLE ROW LEVEL SECURITY;
-   ALTER TABLE allocation DISABLE ROW LEVEL SECURITY;
-   ```
-
-## 🚀 Deploy da Aplicação
-
-### 1. Preparar Ambiente no Servidor
-
-Clone o repositório no servidor:
 ```bash
-git clone <seu-repositorio>
-cd consultancy_pricing
+gcloud auth login
 ```
 
-### 2. Configurar Variáveis de Ambiente
+Isso abrirá o navegador para você fazer login.
 
-Crie um arquivo `.env.supabase` baseado no exemplo:
+#### 2.2. Configurar o projeto
+
+Liste seus projetos:
 ```bash
-cp .env.supabase.example .env
+gcloud projects list
 ```
 
-Edite o arquivo `.env` com suas credenciais:
+Defina o projeto ativo (substitua `MEU-PROJETO-ID`):
+```bash
+gcloud config set project MEU-PROJETO-ID
+```
+
+Ou crie um novo projeto:
+```bash
+gcloud projects create consultancy-pricing-prod --name="Consultancy Pricing"
+gcloud config set project consultancy-pricing-prod
+```
+
+#### 2.3. Habilitar APIs necessárias
+
+```bash
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  containerregistry.googleapis.com \
+  artifactregistry.googleapis.com
+```
+
+Isso pode levar alguns minutos na primeira vez.
+
+#### 2.4. Configurar região padrão
+
+```bash
+# Para Brasil (São Paulo)
+gcloud config set run/region southamerica-east1
+
+# Ou US (Iowa) - mais barato
+# gcloud config set run/region us-central1
+```
+
+Veja todas as regiões disponíveis:
+```bash
+gcloud run regions list
+```
+
+### Passo 3: Preparar Variáveis de Ambiente
+
+Crie um arquivo `.env.cloudrun` na raiz do projeto:
+
 ```bash
 # Configuração do Supabase
 INSTANCE_CONNECTION_NAME=db.xxxxxxxxxxxxx.supabase.co:5432
@@ -75,201 +143,338 @@ DB_USER=postgres
 DB_PASS=sua_senha_do_supabase
 DB_NAME=postgres
 
-# CORS - domínios permitidos (separados por vírgula)
-CORS_ORIGINS=https://seudominio.com,https://www.seudominio.com
+# CORS (seu domínio final do Cloud Run será gerado automaticamente)
+CORS_ORIGINS=*
+
+# Ambiente
+ENVIRONMENT=production
 ```
 
-> **⚠️ IMPORTANTE**: Mantenha o arquivo `.env` seguro e nunca o commite no Git!
+> **⚠️ Importante:** Não commite este arquivo! Ele é apenas para referência local.
 
-### 3. Iniciar a Aplicação
+### Passo 4: Deploy da Aplicação
 
-Execute o Docker Compose em modo produção:
+#### 4.1. Deploy com um único comando
+
+Execute o script de deploy fornecido:
+
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+bash deploy-cloudrun.sh
 ```
 
-Verifique os logs:
+Ou manualmente:
+
 ```bash
-docker-compose -f docker-compose.prod.yml logs -f
+# Definir variáveis
+PROJECT_ID=$(gcloud config get-value project)
+SERVICE_NAME="consultancy-pricing"
+REGION=$(gcloud config get-value run/region)
+
+# Build e deploy
+gcloud run deploy $SERVICE_NAME \
+  --source . \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --set-env-vars "ENVIRONMENT=production" \
+  --set-env-vars "INSTANCE_CONNECTION_NAME=db.xxxxxxxxxxxxx.supabase.co:5432" \
+  --set-env-vars "DB_USER=postgres" \
+  --set-env-vars "DB_PASS=sua_senha_aqui" \
+  --set-env-vars "DB_NAME=postgres" \
+  --set-env-vars "CORS_ORIGINS=*" \
+  --port 8080 \
+  --max-instances 10 \
+  --memory 512Mi \
+  --cpu 1 \
+  --timeout 300s
 ```
 
-Você deve ver:
+**O que esse comando faz:**
+1. Faz build da imagem Docker
+2. Envia para Google Container Registry
+3. Cria/atualiza o serviço no Cloud Run
+4. Configura todas as variáveis de ambiente
+5. Retorna a URL pública da aplicação
+
+#### 4.2. Aguardar o deploy
+
+O processo leva ~3-5 minutos na primeira vez.
+
+Você verá uma saída como:
 ```
-✅ Database connected successfully
-✅ Tables created/updated
-🚀 Application startup complete
+Building using Dockerfile and deploying to Cloud Run service...
+✓ Building and deploying... Done.
+✓ Deploying new service... Done.
+  https://consultancy-pricing-xxxx-uc.a.run.app
 ```
 
-### 4. Verificar Funcionamento
+### Passo 5: Configurar CORS Correto
 
-Teste o health check:
+Após o primeiro deploy, você receberá a URL final (ex: `https://consultancy-pricing-xxxx-uc.a.run.app`).
+
+Atualize o CORS para aceitar apenas esse domínio:
+
 ```bash
-curl http://localhost:8080/health
+gcloud run services update consultancy-pricing \
+  --update-env-vars "CORS_ORIGINS=https://consultancy-pricing-xxxx-uc.a.run.app" \
+  --region $(gcloud config get-value run/region)
 ```
 
-Resposta esperada:
-```json
-{"status": "healthy"}
-```
+### Passo 6: Testar a Aplicação
 
-## 🌐 Configuração de Proxy Reverso (Nginx)
-
-Para expor a aplicação com HTTPS, configure um proxy reverso:
-
-### Exemplo de configuração Nginx:
-
-```nginx
-server {
-    listen 80;
-    server_name seudominio.com;
-    
-    # Redirecionar HTTP para HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name seudominio.com;
-    
-    # Certificados SSL (use Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/seudominio.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/seudominio.com/privkey.pem;
-    
-    # Proxy para a aplicação
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Reload do Nginx:
 ```bash
-sudo nginx -t
-sudo systemctl reload nginx
+# Obter a URL do serviço
+SERVICE_URL=$(gcloud run services describe consultancy-pricing \
+  --region $(gcloud config get-value run/region) \
+  --format 'value(status.url)')
+
+echo "Aplicação disponível em: $SERVICE_URL"
+
+# Testar health check
+curl $SERVICE_URL/health
+
+# Abrir no navegador
+open $SERVICE_URL/frontend/index.html  # macOS
+# ou
+xdg-open $SERVICE_URL/frontend/index.html  # Linux
 ```
+
+## 🔧 Configurações Avançadas
+
+### Usar Domínio Personalizado
+
+1. Vá no [Console do Cloud Run](https://console.cloud.google.com/run)
+2. Clique no seu serviço
+3. Vá em **Manage Custom Domains**
+4. Clique em **Add Mapping**
+5. Selecione ou adicione seu domínio
+6. Configure os registros DNS conforme instruído
+
+### Configurar Secrets (Recomendado para Produção)
+
+Em vez de variáveis de ambiente, use Google Secret Manager:
+
+```bash
+# Criar secret para a senha do banco
+echo -n "sua_senha_do_supabase" | gcloud secrets create db-password --data-file=-
+
+# Dar permissão ao Cloud Run para acessar o secret
+gcloud secrets add-iam-policy-binding db-password \
+  --member="serviceAccount:$(gcloud config get-value project)@appspot.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Deploy usando secret
+gcloud run deploy consultancy-pricing \
+  --source . \
+  --set-secrets="DB_PASS=db-password:latest" \
+  --set-env-vars="INSTANCE_CONNECTION_NAME=db.xxxx.supabase.co:5432,DB_USER=postgres,DB_NAME=postgres"
+```
+
+### Ajustar Recursos
+
+```bash
+# Aumentar memória e CPU
+gcloud run services update consultancy-pricing \
+  --memory 1Gi \
+  --cpu 2 \
+  --region $(gcloud config get-value run/region)
+
+# Configurar autoscaling
+gcloud run services update consultancy-pricing \
+  --min-instances 0 \
+  --max-instances 20 \
+  --region $(gcloud config get-value run/region)
+```
+
+### Configurar Minimum Instances (reduzir cold start)
+
+```bash
+# Manter sempre 1 instância rodando
+gcloud run services update consultancy-pricing \
+  --min-instances 1 \
+  --region $(gcloud config get-value run/region)
+```
+
+> **💡 Nota:** Isso aumenta o custo, pois você paga pela instância mesmo sem tráfego.
 
 ## 📊 Monitoramento
 
-### Logs da Aplicação
-```bash
-# Ver todos os logs
-docker-compose -f docker-compose.prod.yml logs -f
-
-# Logs apenas do app
-docker logs consultancy_pricing_app_prod -f
-```
-
-### Monitoramento do Supabase
-
-No dashboard do Supabase, você pode monitorar:
-- **Database** > **Reports**: Uso de CPU, memória, conexões
-- **Database** > **Backups**: Backups automáticos
-- **Logs**: Query logs e erros
-
-### Health Checks
-
-O container possui health check automático. Verifique o status:
-```bash
-docker ps
-```
-
-A coluna `STATUS` deve mostrar `healthy`.
-
-## 🔄 Atualização da Aplicação
-
-Para atualizar a aplicação:
+### Ver Logs
 
 ```bash
-# 1. Baixar últimas mudanças
-git pull
+# Logs em tempo real
+gcloud run services logs tail consultancy-pricing \
+  --region $(gcloud config get-value run/region)
 
-# 2. Reconstruir a imagem
-docker-compose -f docker-compose.prod.yml build
-
-# 3. Reiniciar com zero downtime (opcional: use docker swarm ou k8s)
-docker-compose -f docker-compose.prod.yml up -d
+# Últimos 50 logs
+gcloud run services logs read consultancy-pricing \
+  --region $(gcloud config get-value run/region) \
+  --limit 50
 ```
 
-> **💡 Dica**: As migrações do banco rodam automaticamente no startup.
+### Dashboard no Console
 
-## 🔐 Segurança
+1. Acesse [console.cloud.google.com/run](https://console.cloud.google.com/run)
+2. Clique no serviço `consultancy-pricing`
+3. Veja métricas de:
+   - Requisições por segundo
+   - Latência
+   - Uso de memória e CPU
+   - Erros
+   - Instâncias ativas
 
-### Checklist de Segurança:
+### Métricas Avançadas (Cloud Monitoring)
 
-- [ ] Variáveis de ambiente configuradas corretamente
-- [ ] CORS limitado apenas aos domínios necessários
-- [ ] Senha forte no Supabase
-- [ ] SSL/HTTPS configurado
-- [ ] Firewall configurado (permitir apenas portas 80/443)
-- [ ] Backups automáticos do Supabase verificados
-- [ ] Logs sendo monitorados
+Acesse [console.cloud.google.com/monitoring](https://console.cloud.google.com/monitoring) para:
+- Criar alertas
+- Dashboards customizados
+- Logs estruturados
+- Tracing distribuído
 
-### Backup Manual (via Supabase)
+## 💰 Custos Estimados
 
-O Supabase faz backups automáticos, mas você pode fazer backup manual:
+**Cloud Run** (pay-per-use):
+- **Requests**: $0.40 por 1 milhão de requests
+- **CPU Time**: $0.00002400 por vCPU-segundo
+- **Memory**: $0.00000250 por GiB-segundo
+- **Free tier**: 2 milhões de requests/mês
 
-1. No dashboard: **Database** > **Backups**
-2. Clique em **"Create backup"**
-3. Para restaurar: **Database** > **Backups** > **"Restore"**
+**Supabase** (plano gratuito):
+- 500 MB de banco de dados
+- 1 GB de transferência
+- Ilimitado para desenvolvimento
+
+**Exemplo de custo mensal:**
+- 100k requests/mês
+- 100ms de latência média
+- 512MB de memória
+- **Custo total: ~$1-2/mês** (praticamente gratuito!)
+
+## 🔄 Atualizações Contínuas
+
+### Deploy Manual
+
+Após fazer alterações no código:
+
+```bash
+# Simplesmente rode o deploy novamente
+bash deploy-cloudrun.sh
+```
+
+O Cloud Run fará:
+1. Build da nova imagem
+2. Deploy gradual (sem downtime)
+3. Rollback automático se houver erros
+
+### CI/CD com GitHub Actions
+
+Crie `.github/workflows/deploy.yml`:
+
+```yaml
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: consultancy-pricing
+          region: southamerica-east1
+          source: ./
+          env_vars: |
+            ENVIRONMENT=production
+            INSTANCE_CONNECTION_NAME=${{ secrets.DB_HOST }}
+            DB_USER=postgres
+            DB_NAME=postgres
+          secrets: |
+            DB_PASS=db-password:latest
+```
 
 ## ❌ Troubleshooting
 
-### Erro: "Connection refused"
+### Erro: "Permission denied"
 
-**Causa**: Aplicação não consegue conectar ao Supabase
+```bash
+# Verificar autenticação
+gcloud auth list
 
-**Solução**:
-1. Verifique as credenciais no `.env`
-2. Teste a conexão diretamente:
-   ```bash
-   docker exec -it consultancy_pricing_app_prod bash
-   psql "postgresql://postgres:sua_senha@db.xxxxx.supabase.co:5432/postgres"
-   ```
+# Fazer login novamente se necessário
+gcloud auth login
+```
 
-### Erro: "SSL connection required"
+### Erro: "Service not found"
 
-**Causa**: Supabase requer SSL
+```bash
+# Verificar se está no projeto correto
+gcloud config get-value project
 
-**Solução**: A aplicação já está configurada para usar SSL automaticamente. Se o erro persistir, verifique se está usando `psycopg2` nas dependências.
+# Listar serviços existentes
+gcloud run services list
+```
+
+### Erro de Conexão com Supabase
+
+```bash
+# Testar conexão localmente primeiro
+python test_supabase_connection.py
+
+# Ver logs do Cloud Run
+gcloud run services logs tail consultancy-pricing
+```
 
 ### Container não inicia
 
-**Solução**:
 ```bash
-# Ver logs detalhados
-docker-compose -f docker-compose.prod.yml logs app
+# Testar build local
+docker build -t test-image .
+docker run -p 8080:8080 --env-file .env.cloudrun test-image
 
-# Reconstruir sem cache
-docker-compose -f docker-compose.prod.yml build --no-cache
-docker-compose -f docker-compose.prod.yml up -d
+# Verificar se inicia sem erros
+curl http://localhost:8080/health
 ```
 
-## 📈 Recursos do Supabase
+### Erro 503 (Service Unavailable)
 
-Seu banco Supabase inclui automaticamente:
+Possíveis causas:
+1. Container demora muito para iniciar (timeout)
+   - Solução: Aumentar `--timeout` no deploy
+2. Health check falhando
+   - Solução: Ver logs e verificar endpoint `/health`
+3. Memória insuficiente
+   - Solução: Aumentar `--memory`
 
-- ✅ **Backups automáticos** diários
-- ✅ **Point-in-time recovery** (últimos 7 dias no plano gratuito)
-- ✅ **Connection pooling** via PgBouncer
-- ✅ **Métricas e monitoramento** integrados
-- ✅ **SSL/TLS** por padrão
-- ✅ **Escalabilidade** automática
+## 🔐 Checklist de Segurança
 
-### Limites do Plano Gratuito:
+- [ ] Usar Google Secret Manager para senhas
+- [ ] Configurar CORS apenas para domínios específicos
+- [ ] Ativar Cloud Armor (proteção DDoS)
+- [ ] Habilitar 2FA na conta Google
+- [ ] Usar IAM roles com menor privilégio
+- [ ] Revisar logs de segurança regularmente
+- [ ] Manter dependências atualizadas
 
-- 500 MB de armazenamento no banco
-- 1 GB de transferência
-- 50 MB de armazenamento de arquivos
-- 2 GB de largura de banda
+## 📚 Recursos Úteis
 
-Para produção em larga escala, considere upgradar para o plano Pro.
+- [Documentação Cloud Run](https://cloud.google.com/run/docs)
+- [Calculadora de Preços](https://cloud.google.com/products/calculator)
+- [Cloud Run Quotas](https://cloud.google.com/run/quotas)
+- [Supabase Docs](https://supabase.com/docs)
+- [Cloud Run Samples](https://github.com/GoogleCloudPlatform/cloud-run-samples)
 
 ## 🆘 Suporte
 
-- **Documentação Supabase**: [https://supabase.com/docs](https://supabase.com/docs)
-- **Status do Supabase**: [https://status.supabase.com](https://status.supabase.com)
-- **Community**: [https://github.com/supabase/supabase/discussions](https://github.com/supabase/supabase/discussions)
+- **Cloud Run**: [Stack Overflow](https://stackoverflow.com/questions/tagged/google-cloud-run)
+- **Supabase**: [Discord](https://discord.supabase.com)
+- **Issues**: Abra uma issue no repositório do projeto

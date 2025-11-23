@@ -1,6 +1,6 @@
 # 📁 Guia de Arquivos .env
 
-Este projeto possui **3 arquivos `.env.example`** diferentes, cada um para um cenário específico de deployment:
+Este projeto possui **2 arquivos `.env.example`** diferentes, cada um para um cenário específico:
 
 ## 📚 Arquivos Disponíveis
 
@@ -22,31 +22,8 @@ docker-compose up --build
 
 ---
 
-### 2. **`.env.supabase.example`**
-**Uso:** Produção em servidor próprio (VPS, EC2, etc.) com Supabase
-
-```bash
-cp .env.supabase.example .env
-# Editar .env com credenciais do Supabase
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-**Características:**
-- ✅ Supabase como banco de dados PostgreSQL
-- ✅ Deploy em servidor genérico com Docker
-- ✅ CORS configurável para domínios específicos
-- ✅ Conexão SSL automática
-
-**Quando usar:** 
-- Deploy em servidor próprio (DigitalOcean, AWS EC2, Linode, etc.)
-- Executando com `docker-compose.prod.yml`
-
-**Documentação:** [DEPLOYMENT.md](DEPLOYMENT.md)
-
----
-
-### 3. **`.env.cloudrun.example`**
-**Uso:** Google Cloud Run com Supabase
+### 2. **`.env.cloudrun.example`**
+**Uso:** Produção no Google Cloud Run com Supabase **(configuração oficial)**
 
 ```bash
 cp .env.cloudrun.example .env.cloudrun
@@ -64,7 +41,7 @@ cp .env.cloudrun.example .env.cloudrun
 - Deploy serverless no Google Cloud Run
 - Aplicação escalável e pay-per-use
 
-**Documentação:** [CLOUDRUN_DEPLOYMENT.md](CLOUDRUN_DEPLOYMENT.md)
+**Documentação:** [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
@@ -72,9 +49,8 @@ cp .env.cloudrun.example .env.cloudrun
 
 | Cenário | Arquivo | Comando |
 |---------|---------|---------|
-| **Desenvolvimento no seu PC** | `.env.example` | `docker-compose up` |
-| **VPS/Servidor próprio + Supabase** | `.env.supabase.example` | `docker-compose -f docker-compose.prod.yml up` |
-| **Google Cloud Run + Supabase** | `.env.cloudrun.example` | `./deploy-cloudrun.sh` |
+| **Desenvolvimento local** | `.env.example` | `docker-compose up` |
+| **Produção (Cloud Run + Supabase)** | `.env.cloudrun.example` | `./deploy-cloudrun.sh` |
 
 ## 🔒 Segurança
 
@@ -82,7 +58,6 @@ cp .env.cloudrun.example .env.cloudrun
 
 Os seguintes arquivos estão no `.gitignore`:
 - ✅ `.env`
-- ✅ `.env.supabase`
 - ✅ `.env.cloudrun`
 
 Apenas os arquivos `.example` são versionados no Git.
@@ -98,11 +73,11 @@ Todas as configurações usam as mesmas variáveis:
 | `DB_USER` | Usuário do banco | `postgres` |
 | `DB_PASS` | Senha do banco | `sua_senha_segura` |
 | `DB_NAME` | Nome do banco | `postgres` |
-| `CORS_ORIGINS` | Domínios permitidos (CORS) | `https://seuapp.com` |
+| `CORS_ORIGINS` | Domínios permitidos (CORS) | `https://seuapp.com` ou `*` |
 
 ## 🆘 Ajuda
 
-Se tiver dúvidas sobre qual arquivo usar, veja:
+Se tiver dúvidas sobre configuração:
 - [README.md](README.md) - Visão geral do projeto
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Deploy com Supabase em servidor próprio
-- [CLOUDRUN_DEPLOYMENT.md](CLOUDRUN_DEPLOYMENT.md) - Deploy no Google Cloud Run
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Guia completo de deployment
+- [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Checklist passo a passo

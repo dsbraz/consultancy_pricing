@@ -1,4 +1,4 @@
-# ✅ Checklist: Deploy no Google Cloud Run + Supabase
+# ✅ Checklist de Deploy em Produção
 
 ## 📦 Configuração do Supabase
 
