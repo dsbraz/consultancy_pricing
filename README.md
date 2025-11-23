@@ -325,6 +325,11 @@ Para executar em ambiente de produção usando `docker-compose.prod.yml`:
 > 
 > 📖 **[Veja o guia completo de deployment com Supabase](DEPLOYMENT.md)**
 
+> [!TIP]
+> **Recomendado:** Use **[Google Cloud Run](https://cloud.google.com/run)** para hospedar a aplicação! É serverless, escala automaticamente e extremamente barato (~$1-2/mês).
+>
+> 🚀 **[Guia completo: Deploy no Cloud Run + Supabase](CLOUDRUN_DEPLOYMENT.md)**
+
 <details>
 <summary>Outras opções de banco de dados gerenciado</summary>
 
