@@ -14,7 +14,7 @@
 
 ## 📝 Configuração Local
 
-- [ ] Copiar `.env.production.example` para `.env`
+- [ ] Copiar `.env.supabase.example` para `.env`
 - [ ] Preencher variáveis no `.env`:
   - [ ] INSTANCE_CONNECTION_NAME
   - [ ] DB_USER

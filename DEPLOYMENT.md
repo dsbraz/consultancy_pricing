@@ -62,9 +62,9 @@ cd consultancy_pricing
 
 ### 2. Configurar Variáveis de Ambiente
 
-Crie um arquivo `.env` baseado no exemplo:
+Crie um arquivo `.env.supabase` baseado no exemplo:
 ```bash
-cp .env.production.example .env
+cp .env.supabase.example .env
 ```
 
 Edite o arquivo `.env` com suas credenciais:
