@@ -321,7 +321,19 @@ docker rm consultancy-pricing
 Para executar em ambiente de produção usando `docker-compose.prod.yml`:
 
 > [!IMPORTANT]
-> Em produção, a aplicação usa um **banco de dados gerenciado** (Cloud SQL, RDS, Azure Database) ao invés de um container PostgreSQL.
+> Em produção, a aplicação usa um **banco de dados gerenciado**. **Recomendamos o [Supabase](https://supabase.com)** para uma configuração rápida e gratuita.
+> 
+> 📖 **[Veja o guia completo de deployment com Supabase](DEPLOYMENT.md)**
+
+<details>
+<summary>Outras opções de banco de dados gerenciado</summary>
+
+Você também pode usar:
+- Google Cloud SQL
+- AWS RDS
+- Azure Database for PostgreSQL
+
+</details>
 
 #### 1. Provisionar banco de dados gerenciado
 

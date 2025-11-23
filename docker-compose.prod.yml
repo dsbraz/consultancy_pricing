@@ -37,16 +37,17 @@ services:
           cpus: '0.5'
           memory: 512M
 
-# Production uses external managed database service (Cloud SQL, RDS, etc.)
-# No PostgreSQL container needed
+# Production uses Supabase as managed PostgreSQL database
 #
-# Database setup checklist:
-# 1. Create managed PostgreSQL instance in your cloud provider
-# 2. Configure firewall/VPC to allow container access
-# 3. Create database and user
-# 4. Set connection details in .env file:
-#    - INSTANCE_CONNECTION_NAME (host:port or connection string)
-#    - DB_USER
-#    - DB_PASS
-#    - DB_NAME
-# 5. For Cloud SQL, consider using Cloud SQL Proxy for secure connections
+# Supabase setup checklist:
+# 1. Create a project at https://supabase.com
+# 2. Go to Project Settings > Database
+# 3. Find the connection info under "Connection string" > "URI"
+# 4. Set environment variables in .env file:
+#    - INSTANCE_CONNECTION_NAME: db.<your-project>.supabase.co:5432
+#    - DB_USER: postgres
+#    - DB_PASS: your database password (from project settings)
+#    - DB_NAME: postgres (default Supabase database)
+#    - CORS_ORIGINS: your production domain(s)
+# 5. The connection uses SSL by default (Supabase requirement)
+# 6. Database migrations will run automatically on container startup
