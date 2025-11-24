@@ -4,6 +4,7 @@ import { escapeHtml } from '../sanitize.js';
 
 export async function renderProjects(container) {
     let currentProjectId = null;
+    let currentProjectData = null;
     let editingProjectId = null;
     let allocationTableData = null;
     let currentSortBy = 'name'; // default sort by name
@@ -71,22 +72,22 @@ export async function renderProjects(container) {
                         
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Custo</span>
+                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Custo (+)</span>
                                 <span id="res-cost" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
-                            
+
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Venda</span>
+                                <span id="label-margin-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem (+)</span>
+                                <span id="res-margin" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
+                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Venda (=)</span>
                                 <span id="res-selling" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                             
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span id="label-margin-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem</span>
-                                <span id="res-margin" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
-                            </div>
-                            
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span id="label-tax-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos</span>
+                                <span id="label-tax-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos (+)</span>
                                 <span id="res-tax" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                         </div>
@@ -98,7 +99,7 @@ export async function renderProjects(container) {
                         <div style="background: linear-gradient(135deg, var(--md-sys-color-primary-container) 0%, var(--md-sys-color-primary-container) 100%); padding: 1.5rem; border-radius: var(--md-sys-shape-corner-large); box-shadow: var(--md-sys-elevation-2); border: 1px solid var(--md-sys-color-primary);">
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <span class="material-icons" style="color: var(--md-sys-color-primary); font-size: 1.25rem;">payments</span>
-                                <span style="font-size: 0.75rem; font-weight: 500; color: var(--md-sys-color-on-primary-container); text-transform: uppercase; letter-spacing: 0.5px;">Preço Final</span>
+                                <span style="font-size: 0.75rem; font-weight: 500; color: var(--md-sys-color-on-primary-container); text-transform: uppercase; letter-spacing: 0.5px;">Preço Final (=)</span>
                             </div>
                             <div id="res-price" style="font-size: 2rem; font-weight: 700; color: var(--md-sys-color-primary); line-height: 1.2;"></div>
                         </div>
@@ -317,10 +318,7 @@ export async function renderProjects(container) {
             // 1. Save Allocations
             const result = await api.put(`/projects/${currentProjectId}/allocations`, updates);
 
-            // 2. Get project data to access configured margin
-            const project = await api.get(`/projects/${currentProjectId}`);
-
-            // 3. Calculate Price
+            // 2. Calculate Price
             const res = await api.get(`/projects/${currentProjectId}/calculate_price`);
             document.getElementById('res-cost').textContent = formatCurrency(res.total_cost);
             document.getElementById('res-selling').textContent = formatCurrency(res.total_selling);
@@ -329,10 +327,10 @@ export async function renderProjects(container) {
             document.getElementById('res-price').textContent = formatCurrency(res.final_price);
             document.getElementById('res-final-margin').textContent = res.final_margin_percent.toFixed(2) + '%';
 
-            // 4. Apply conditional color coding to margin card
+            // 3. Apply conditional color coding to margin card
             const marginCard = document.getElementById('res-final-margin').parentElement;
-            const finalMargin = res.final_margin_percent;
-            const configuredMargin = project.margin_rate;
+            const finalMargin = res.final_margin_percent.toFixed(3);
+            const configuredMargin = currentProjectData.margin_rate.toFixed(3);
 
             if (finalMargin >= configuredMargin) {
                 // Green - margin meets or exceeds target
@@ -469,6 +467,22 @@ export async function renderProjects(container) {
         }
     }
 
+    // Helper function to apply color coding to margin cells
+    function applyMarginColor(marginCell, marginPercent, configuredMargin) {
+        const margin = parseFloat(marginPercent);
+        const target = parseFloat(configuredMargin);
+
+        if (margin >= target) {
+            // Green - margin meets or exceeds target
+            marginCell.style.background = '#dcfce7';
+            marginCell.style.color = '#059669';
+        } else {
+            // Red - margin below target
+            marginCell.style.background = '#fee2e2';
+            marginCell.style.color = '#dc2626';
+        }
+    }
+
     function renderAllocationTable(data) {
         const container = document.getElementById('allocation-table-container');
 
@@ -526,7 +540,7 @@ export async function renderProjects(container) {
             const marginPercent = alloc.selling_hourly_rate > 0
                 ? ((alloc.selling_hourly_rate - alloc.professional.hourly_cost) / alloc.selling_hourly_rate * 100).toFixed(2)
                 : '0.00';
-            html += `<td class="margin-cell" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; background: #dcfce7; font-weight: 600;">${marginPercent}%</td>`;
+            html += `<td class="margin-cell" data-margin="${marginPercent}" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; font-weight: 600;">${marginPercent}%</td>`;
 
             let totalHours = 0;
             data.weeks.forEach(week => {
@@ -557,6 +571,18 @@ export async function renderProjects(container) {
         html += '</tbody></table>';
 
         container.innerHTML = html;
+
+        // Apply colors to margin cells based on configured margin
+        if (currentProjectData && currentProjectData.margin_rate !== undefined) {
+            const rows = container.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const marginCell = row.querySelector('.margin-cell');
+                if (marginCell) {
+                    const marginPercent = marginCell.dataset.margin;
+                    applyMarginColor(marginCell, marginPercent, currentProjectData.margin_rate);
+                }
+            });
+        }
 
         // Add event delegation for delete buttons
         container.querySelectorAll('button[data-allocation-id]').forEach(btn => {
@@ -599,6 +625,12 @@ export async function renderProjects(container) {
                         ? ((sellingRate - cost) / sellingRate * 100).toFixed(2)
                         : '0.00';
                     marginCell.textContent = `${marginPercent}%`;
+                    marginCell.dataset.margin = marginPercent;
+
+                    // Apply color based on configured margin
+                    if (currentProjectData && currentProjectData.margin_rate !== undefined) {
+                        applyMarginColor(marginCell, marginPercent, currentProjectData.margin_rate);
+                    }
                 });
             }
         });
@@ -686,6 +718,7 @@ export async function renderProjects(container) {
     window.viewProject = async (id) => {
         const project = await api.get(`/projects/${id}`);
         currentProjectId = id;
+        currentProjectData = project;
         document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
         document.getElementById('proj-details').style.display = 'block';
         loadOffersSelect();
