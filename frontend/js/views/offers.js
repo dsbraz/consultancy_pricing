@@ -58,7 +58,7 @@ export async function renderOffers(container) {
                                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Adicionar Profissional</label>
                                 <select id="off-prof-select" style="width: 100%; padding: 0.5rem;">
                                     <option value="">-- Selecionar Profissional --</option>
-                                    ${professionals.map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
+                                    ${professionals.filter(p => p.is_template).map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
                                 </select>
                             </div>
                             <div style="width: 120px;">
