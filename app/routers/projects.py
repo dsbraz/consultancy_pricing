@@ -156,17 +156,11 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     for item in offer.items:
         professionals_to_allocate = []
         
-        if not item.professional_id:
-            # Should not happen with current schema, but safe guard
-            logger.warning(f"Item without professional_id in offer {offer_id}")
-            continue
-
         prof = db.query(models.Professional).filter(models.Professional.id == item.professional_id).first()
         if not prof:
             logger.warning(f"Professional {item.professional_id} not found for offer item")
             continue
 
-        # Treat all professionals the same, regardless of is_template flag
         professionals_to_allocate.append(prof)
         
         for professional in professionals_to_allocate:
@@ -227,7 +221,6 @@ def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
 @router.get("/projects/{project_id}/allocation_table")
 def get_allocation_table(project_id: int, db: Session = Depends(get_db)):
 
-    
     project = db.query(models.Project).options(
         joinedload(models.Project.allocations)
         .joinedload(models.ProjectAllocation.professional),
@@ -336,12 +329,7 @@ def update_allocations(project_id: int, updates: List[dict], db: Session = Depen
 
 
 @router.post("/projects/{project_id}/allocations/")
-def add_professional_to_project(
-    project_id: int, 
-    professional_id: int, 
-    selling_hourly_rate: float = None,
-    db: Session = Depends(get_db)
-):
+def add_professional_to_project(project_id: int, professional_id: int, selling_hourly_rate: float = None, db: Session = Depends(get_db)):
     """
     Manually add a professional to a project.
     Creates ProjectAllocation and WeeklyAllocations for all project weeks.
