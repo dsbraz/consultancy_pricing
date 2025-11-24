@@ -36,7 +36,7 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
 
 @router.get("/offers/", response_model=List[schemas.Offer])
 def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    offers = db.query(models.Offer).offset(skip).limit(limit).all()
+    offers = db.query(models.Offer).order_by(models.Offer.name).offset(skip).limit(limit).all()
     logger.debug(f"Retrieved {len(offers)} offers (skip={skip}, limit={limit})")
     return offers
 

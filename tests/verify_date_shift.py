@@ -8,7 +8,7 @@ import requests
 import datetime
 import sys
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 def make_request(method, endpoint, data=None):
     url = f"{BASE_URL}{endpoint}"

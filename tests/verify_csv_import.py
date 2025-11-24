@@ -4,7 +4,7 @@ import os
 # Test CSV import functionality
 BASE_URL = "http://localhost:8080"
 
-def test_csv_import():
+def verify_csv_import():
     """Test importing professionals from CSV file"""
     
     # Create a test CSV file
@@ -96,4 +96,4 @@ PROF002,Test Professional 2,Designer,Sênior,false,160.00"""
         print(f"Error testing uniqueness: {e}")
 
 if __name__ == "__main__":
-    test_csv_import()
+    verify_csv_import()

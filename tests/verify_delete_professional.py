@@ -1,9 +1,9 @@
 import requests
 import datetime
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
-def test_delete_professional():
+def verify_delete_professional():
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     
     # 1. Create two professionals
@@ -76,7 +76,7 @@ def test_delete_professional():
 
 if __name__ == "__main__":
     try:
-        test_delete_professional()
+        verify_delete_professional()
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback

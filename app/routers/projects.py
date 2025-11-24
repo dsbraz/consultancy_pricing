@@ -45,7 +45,7 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 
 @router.get("/projects/", response_model=List[schemas.Project])
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    projects = db.query(models.Project).offset(skip).limit(limit).all()
+    projects = db.query(models.Project).order_by(models.Project.name).offset(skip).limit(limit).all()
     logger.debug(f"Retrieved {len(projects)} projects (skip={skip}, limit={limit})")
     return projects
 

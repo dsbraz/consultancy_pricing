@@ -31,7 +31,7 @@ def create_professional(professional: schemas.ProfessionalCreate, db: Session = 
 
 @router.get("/professionals/", response_model=List[schemas.Professional])
 def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    professionals = db.query(models.Professional).offset(skip).limit(limit).all()
+    professionals = db.query(models.Professional).order_by(models.Professional.name).offset(skip).limit(limit).all()
     logger.debug(f"Retrieved {len(professionals)} professionals (skip={skip}, limit={limit})")
     return professionals
 
