@@ -67,8 +67,8 @@ class WeeklyAllocation(Base):
     id = Column(Integer, primary_key=True, index=True)
     allocation_id = Column(Integer, ForeignKey("project_allocations.id"), nullable=False)
     week_number = Column(Integer, nullable=False)  # Sequential: 1, 2, 3...
-    week_start_date = Column(Date, nullable=False)  # Monday of the week
     hours_allocated = Column(Float, default=0.0, nullable=False)
     available_hours = Column(Float, nullable=False)  # Business hours available in this week
     
     allocation = relationship("ProjectAllocation", back_populates="weekly_allocations")
+

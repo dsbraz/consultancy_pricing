@@ -28,10 +28,6 @@ class PricingService:
         
         total_cost = 0.0
         total_selling = 0.0
-        monthly_costs = {}
-        monthly_selling = {}
-        weekly_costs = {}
-        weekly_selling = {}
         
         for allocation in project.allocations:
             professional = allocation.professional
@@ -43,21 +39,8 @@ class PricingService:
             
             for weekly_alloc in allocation.weekly_allocations:
                 hours = weekly_alloc.hours_allocated
-                
-                week_key = weekly_alloc.week_number
-                month_key = weekly_alloc.week_start_date.strftime("%Y-%m")
-                
-                week_cost = hours * hourly_cost
-                week_selling = hours * selling_rate
-                
-                total_cost += week_cost
-                total_selling += week_selling
-                
-                weekly_costs[week_key] = weekly_costs.get(week_key, 0) + week_cost
-                weekly_selling[week_key] = weekly_selling.get(week_key, 0) + week_selling
-                
-                monthly_costs[month_key] = monthly_costs.get(month_key, 0) + week_cost
-                monthly_selling[month_key] = monthly_selling.get(month_key, 0) + week_selling
+                total_cost += hours * hourly_cost
+                total_selling += hours * selling_rate
         
         total_margin = total_selling - total_cost
         
@@ -81,13 +64,5 @@ class PricingService:
             "total_margin": total_margin,
             "total_tax": total_tax,
             "final_price": final_price,
-            "final_margin_percent": final_margin_percent,
-            "monthly_breakdown": {
-                "costs": monthly_costs,
-                "selling": monthly_selling
-            },
-            "weekly_breakdown": {
-                "costs": weekly_costs,
-                "selling": weekly_selling
-            }
+            "final_margin_percent": final_margin_percent
         }

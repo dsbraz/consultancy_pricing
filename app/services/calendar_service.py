@@ -16,42 +16,6 @@ class CalendarService:
             return False
         return True
 
-    def get_business_hours_in_month(self, year: int, month: int, hours_per_day: int = 8) -> int:
-        _, num_days = calendar.monthrange(year, month)
-        business_days = 0
-        for day in range(1, num_days + 1):
-            current_date = date(year, month, day)
-            if self.is_business_day(current_date):
-                business_days += 1
-        return business_days * hours_per_day
-
-    def get_business_hours_for_period(self, start_date: date, duration_months: int, hours_per_day: int = 8) -> dict:
-        """
-        Returns a dictionary mapping (year, month) tuples to business hours.
-        """
-        result = {}
-        current_date = start_date
-        
-        for _ in range(duration_months):
-            year = current_date.year
-            month = current_date.month
-            
-            _, num_days_in_month = calendar.monthrange(year, month)
-            
-            
-            days_in_month = 0
-            for day in range(current_date.day, num_days_in_month + 1):
-                 if self.is_business_day(date(year, month, day)):
-                     days_in_month += 1
-            
-            result[(year, month)] = days_in_month * hours_per_day
-            
-            if month == 12:
-                current_date = date(year + 1, 1, 1)
-            else:
-                current_date = date(year, month + 1, 1)
-                
-        return result
 
     def get_monday_of_week(self, check_date: date) -> date:
         """Returns the Monday of the week for the given date."""

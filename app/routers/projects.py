@@ -95,7 +95,6 @@ def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session 
                 existing_week = existing_weeks[week_num]
                 new_week_data = new_weeks_map[week_num]
                 
-                existing_week.week_start_date = datetime.fromisoformat(new_week_data['week_start']).date()
                 existing_week.available_hours = new_week_data['available_hours']
             
             weeks_to_remove = existing_week_numbers - new_week_numbers
@@ -109,7 +108,6 @@ def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session 
                 new_weekly_alloc = models.WeeklyAllocation(
                     allocation_id=allocation.id,
                     week_number=week['week_number'],
-                    week_start_date=datetime.fromisoformat(week['week_start']).date(),
                     hours_allocated=0.0,  # Default to 0, user can adjust manually
                     available_hours=week['available_hours']
                 )
@@ -215,7 +213,6 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
                 weekly_alloc = models.WeeklyAllocation(
                     allocation_id=db_alloc.id,
                     week_number=week['week_number'],
-                    week_start_date=datetime.fromisoformat(week['week_start']).date(),
                     hours_allocated=week['available_hours'] * (item.allocation_percentage / 100.0),
                     available_hours=week['available_hours']
                 )
@@ -416,7 +413,6 @@ def add_professional_to_project(
         weekly_alloc = models.WeeklyAllocation(
             allocation_id=allocation.id,
             week_number=week['week_number'],
-            week_start_date=datetime.fromisoformat(week['week_start']).date(),
             hours_allocated=0.0,  # User will fill in hours manually
             available_hours=week['available_hours']
         )

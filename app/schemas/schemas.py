@@ -95,7 +95,6 @@ class Offer(OfferBase):
 
 class WeeklyAllocationBase(BaseModel):
     week_number: int
-    week_start_date: date
     hours_allocated: float = Field(default=0.0, ge=0.0)
     available_hours: float = Field(..., ge=0.0)
 
@@ -164,8 +163,6 @@ class ProjectPricing(BaseModel):
     total_margin: float
     total_tax: float
     final_price: float
-    final_margin_percent: float  # (Final - Cost) / Cost * 100
-    monthly_breakdown: dict = {}
-    weekly_breakdown: dict = {}
+    final_margin_percent: float
     class Config:
-        from_attributes = True # Updated from orm_mode
+        from_attributes = True
