@@ -3,16 +3,17 @@ import datetime
 
 BASE_URL = "http://localhost:8000"
 
+
 def verify_duration_adjustment():
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    
+
     # 1. Create a professional
     prof_data = {
         "name": f"Test Prof Duration {timestamp}",
         "role": "Developer",
         "level": "Senior",
         "hourly_cost": 100.0,
-        "professional_id": f"DUR{timestamp}"
+        "professional_id": f"DUR{timestamp}",
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     assert resp.status_code == 200
@@ -28,9 +29,9 @@ def verify_duration_adjustment():
                 "level": "Senior",
                 "quantity": 1,
                 "allocation_percentage": 100.0,
-                "professional_id": prof_id
+                "professional_id": prof_id,
             }
-        ]
+        ],
     }
     resp = requests.post(f"{BASE_URL}/offers/", json=offer_data)
     assert resp.status_code == 200
@@ -43,7 +44,7 @@ def verify_duration_adjustment():
         "start_date": datetime.date.today().isoformat(),
         "duration_months": 3,
         "tax_rate": 10.0,
-        "margin_rate": 20.0
+        "margin_rate": 20.0,
     }
     resp = requests.post(f"{BASE_URL}/projects/", json=project_data)
     assert resp.status_code == 200
@@ -63,7 +64,9 @@ def verify_duration_adjustment():
     print(f"✓ Initial weeks count: {initial_weeks}")
 
     # 6. Reduce duration to 2 months
-    resp = requests.put(f"{BASE_URL}/projects/{project_id}", json={"duration_months": 2})
+    resp = requests.put(
+        f"{BASE_URL}/projects/{project_id}", json={"duration_months": 2}
+    )
     assert resp.status_code == 200
     print("✓ Reduced project duration to 2 months")
 
@@ -73,13 +76,17 @@ def verify_duration_adjustment():
     data = resp.json()
     reduced_weeks = len(data["weeks"])
     print(f"✓ Weeks after reduction: {reduced_weeks}")
-    
+
     # Verify weeks were removed
-    assert reduced_weeks < initial_weeks, f"Expected fewer weeks, got {reduced_weeks} vs {initial_weeks}"
+    assert reduced_weeks < initial_weeks, (
+        f"Expected fewer weeks, got {reduced_weeks} vs {initial_weeks}"
+    )
     print(f"✓ Verified: {initial_weeks - reduced_weeks} weeks were removed")
 
     # 8. Increase duration to 4 months
-    resp = requests.put(f"{BASE_URL}/projects/{project_id}", json={"duration_months": 4})
+    resp = requests.put(
+        f"{BASE_URL}/projects/{project_id}", json={"duration_months": 4}
+    )
     assert resp.status_code == 200
     print("✓ Increased project duration to 4 months")
 
@@ -89,11 +96,13 @@ def verify_duration_adjustment():
     data = resp.json()
     increased_weeks = len(data["weeks"])
     print(f"✓ Weeks after increase: {increased_weeks}")
-    
+
     # Verify weeks were added
-    assert increased_weeks > reduced_weeks, f"Expected more weeks, got {increased_weeks} vs {reduced_weeks}"
+    assert increased_weeks > reduced_weeks, (
+        f"Expected more weeks, got {increased_weeks} vs {reduced_weeks}"
+    )
     print(f"✓ Verified: {increased_weeks - reduced_weeks} weeks were added")
-    
+
     # Verify new weeks have 0 hours
     allocations = data["allocations"]
     if allocations:
@@ -107,11 +116,13 @@ def verify_duration_adjustment():
 
     print("\n✅ Verification successful!")
 
+
 if __name__ == "__main__":
     try:
         verify_duration_adjustment()
     except Exception as e:
         print(f"\n❌ Verification failed: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)

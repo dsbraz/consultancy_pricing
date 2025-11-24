@@ -3,6 +3,7 @@ import sys
 
 BASE_URL = "http://localhost:8000"
 
+
 def verify_pricing_logic():
     print("Starting pricing logic verification...")
 
@@ -12,7 +13,7 @@ def verify_pricing_logic():
         "name": "Test Pricing Prof",
         "role": "Dev",
         "level": "Sen",
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     if resp.status_code != 200:
@@ -30,7 +31,7 @@ def verify_pricing_logic():
         "duration_months": 1,
         "tax_rate": 10.0,
         "margin_rate": 20.0,
-        "allocations": []
+        "allocations": [],
     }
     resp = requests.post(f"{BASE_URL}/projects/", json=proj_data)
     if resp.status_code != 200:
@@ -63,15 +64,12 @@ def verify_pricing_logic():
                 first_week_key = list(alloc["weekly_hours"].keys())[0]
                 weekly_alloc_id = alloc["weekly_hours"][first_week_key]["id"]
                 break
-        
+
         if not weekly_alloc_id:
             print("Could not find weekly allocation ID")
             sys.exit(1)
 
-        updates = [{
-            "weekly_allocation_id": weekly_alloc_id,
-            "hours_allocated": 10.0
-        }]
+        updates = [{"weekly_allocation_id": weekly_alloc_id, "hours_allocated": 10.0}]
         resp = requests.put(f"{BASE_URL}/projects/{proj_id}/allocations", json=updates)
         if resp.status_code != 200:
             print(f"Failed to update hours: {resp.text}")
@@ -83,7 +81,7 @@ def verify_pricing_logic():
         if resp.status_code != 200:
             print(f"Failed to calculate price: {resp.text}")
             sys.exit(1)
-        
+
         price_data = resp.json()
         print(f"Pricing Result: {price_data}")
 
@@ -105,10 +103,14 @@ def verify_pricing_logic():
             print(f"Mismatch! Cost: {price_data['total_cost']} != {expected_cost}")
             sys.exit(1)
         if price_data["total_selling"] != expected_selling:
-            print(f"Mismatch! Selling: {price_data['total_selling']} != {expected_selling}")
+            print(
+                f"Mismatch! Selling: {price_data['total_selling']} != {expected_selling}"
+            )
             sys.exit(1)
         if price_data["total_margin"] != expected_margin:
-            print(f"Mismatch! Margin: {price_data['total_margin']} != {expected_margin}")
+            print(
+                f"Mismatch! Margin: {price_data['total_margin']} != {expected_margin}"
+            )
             sys.exit(1)
         if price_data["total_tax"] != expected_tax:
             print(f"Mismatch! Tax: {price_data['total_tax']} != {expected_tax}")
@@ -126,6 +128,7 @@ def verify_pricing_logic():
         pass
 
     print("Verification successful!")
+
 
 if __name__ == "__main__":
     verify_pricing_logic()

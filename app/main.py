@@ -11,8 +11,8 @@ import sys
 # Configure logging first
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -54,10 +54,12 @@ frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
 app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 logger.info(f"Frontend static files mounted from: {frontend_dir}")
 
+
 @app.get("/")
 def read_root():
     logger.debug("Root endpoint accessed")
     return {"message": "Welcome to Consultancy Pricing API"}
+
 
 @app.get("/health")
 def health_check():
@@ -70,16 +72,9 @@ def health_check():
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         db.close()
-        
+
         logger.debug("Health check passed")
-        return {
-            "status": "healthy",
-            "database": "connected"
-        }
+        return {"status": "healthy", "database": "connected"}
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "database": "disconnected",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}

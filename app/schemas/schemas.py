@@ -2,6 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, field_validator, Field
 from datetime import date
 
+
 class ProfessionalBase(BaseModel):
     pid: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
@@ -10,15 +11,17 @@ class ProfessionalBase(BaseModel):
     is_template: bool = False
     hourly_cost: float = Field(default=0.0, ge=0.0)
 
-    @field_validator('pid', 'name', 'role', 'level')
+    @field_validator("pid", "name", "role", "level")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip()
+
 
 class ProfessionalCreate(ProfessionalBase):
     pass
+
 
 class ProfessionalUpdate(BaseModel):
     pid: Optional[str] = Field(None, min_length=1)
@@ -28,17 +31,20 @@ class ProfessionalUpdate(BaseModel):
     is_template: Optional[bool] = None
     hourly_cost: Optional[float] = Field(None, ge=0.0)
 
-    @field_validator('pid', 'name', 'role', 'level')
+    @field_validator("pid", "name", "role", "level")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and (not v or not v.strip()):
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip() if v else None
+
 
 class Professional(ProfessionalBase):
     id: int
+
     class Config:
         from_attributes = True
+
 
 class OfferItemBase(BaseModel):
     role: str = Field(..., min_length=1)
@@ -46,78 +52,95 @@ class OfferItemBase(BaseModel):
     allocation_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
     professional_id: int
 
-    @field_validator('role', 'level')
+    @field_validator("role", "level")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip()
+
 
 class OfferItemCreate(OfferItemBase):
     pass
 
+
 class OfferItem(OfferItemBase):
     id: int
     offer_id: int
+
     class Config:
         orm_mode = True
+
 
 class OfferBase(BaseModel):
     name: str = Field(..., min_length=1)
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip()
+
 
 class OfferCreate(OfferBase):
     items: List[OfferItemCreate] = []
+
 
 class OfferUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     items: Optional[List[OfferItemCreate]] = None
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and (not v or not v.strip()):
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip() if v else None
+
 
 class Offer(OfferBase):
     id: int
     items: List[OfferItem] = []
+
     class Config:
         from_attributes = True
+
 
 class WeeklyAllocationBase(BaseModel):
     week_number: int
     hours_allocated: float = Field(default=0.0, ge=0.0)
     available_hours: float = Field(..., ge=0.0)
 
+
 class WeeklyAllocationCreate(WeeklyAllocationBase):
     pass
 
+
 class WeeklyAllocation(WeeklyAllocationBase):
     id: int
+
     class Config:
         from_attributes = True
+
 
 class ProjectAllocationBase(BaseModel):
     professional_id: int
     selling_hourly_rate: float = Field(default=0.0, ge=0.0)
 
+
 class ProjectAllocationCreate(ProjectAllocationBase):
     weekly_allocations: List[WeeklyAllocationCreate] = []
+
 
 class ProjectAllocation(ProjectAllocationBase):
     id: int
     professional: Professional
     weekly_allocations: List[WeeklyAllocation] = []
+
     class Config:
         from_attributes = True
+
 
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1)
@@ -126,15 +149,17 @@ class ProjectBase(BaseModel):
     tax_rate: float = Field(..., ge=0.0, le=100.0)
     margin_rate: float = Field(..., ge=0.0, le=100.0)
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip()
+
 
 class ProjectCreate(ProjectBase):
     allocations: List[ProjectAllocationCreate] = []
+
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
@@ -143,18 +168,21 @@ class ProjectUpdate(BaseModel):
     tax_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
     margin_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and (not v or not v.strip()):
-            raise ValueError('Campo não pode ser vazio ou conter apenas espaços')
+            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
         return v.strip() if v else None
+
 
 class Project(ProjectBase):
     id: int
     allocations: List[ProjectAllocation] = []
+
     class Config:
         from_attributes = True
+
 
 class ProjectPricing(BaseModel):
     total_cost: float
@@ -163,5 +191,6 @@ class ProjectPricing(BaseModel):
     total_tax: float
     final_price: float
     final_margin_percent: float
+
     class Config:
         from_attributes = True

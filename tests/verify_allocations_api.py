@@ -3,6 +3,7 @@ import sys
 
 BASE_URL = "http://localhost:8000"
 
+
 def test_allocations():
     print("Starting allocation verification...")
 
@@ -12,7 +13,7 @@ def test_allocations():
         "name": "Test Professional for Alloc",
         "role": "Developer",
         "level": "Senior",
-        "hourly_cost": 100.0
+        "hourly_cost": 100.0,
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     if resp.status_code != 200:
@@ -30,7 +31,7 @@ def test_allocations():
         "duration_months": 3,
         "tax_rate": 10.0,
         "margin_rate": 20.0,
-        "allocations": []
+        "allocations": [],
     }
     resp = requests.post(f"{BASE_URL}/projects/", json=proj_data)
     if resp.status_code != 200:
@@ -43,7 +44,7 @@ def test_allocations():
     try:
         # 3. Add professional to project
         print("Adding professional to project...")
-        
+
         url = f"{BASE_URL}/projects/{proj_id}/allocations/?professional_id={prof_id}"
         resp = requests.post(url)
         if resp.status_code != 200:
@@ -60,14 +61,14 @@ def test_allocations():
             print(f"Failed to get allocation table: {resp.text}")
             sys.exit(1)
         table_data = resp.json()
-        
+
         found = False
         for alloc in table_data["allocations"]:
             if alloc["allocation_id"] == alloc_id:
                 found = True
                 print("Allocation found in table.")
                 break
-        
+
         if not found:
             print("Allocation NOT found in table!")
             sys.exit(1)
@@ -87,13 +88,13 @@ def test_allocations():
             print(f"Failed to get allocation table: {resp.text}")
             sys.exit(1)
         table_data = resp.json()
-        
+
         found = False
         for alloc in table_data["allocations"]:
             if alloc["allocation_id"] == alloc_id:
                 found = True
                 break
-        
+
         if found:
             print("Allocation STILL found in table after deletion!")
             sys.exit(1)
@@ -107,6 +108,7 @@ def test_allocations():
         pass
 
     print("Verification successful!")
+
 
 if __name__ == "__main__":
     test_allocations()

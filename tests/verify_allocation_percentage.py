@@ -3,16 +3,17 @@ import datetime
 
 BASE_URL = "http://localhost:8000"
 
+
 def verify_allocation_percentage():
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    
+
     # 1. Create a professional
     prof_data = {
         "name": f"Test Prof Percentage {timestamp}",
         "role": "Developer",
         "level": "Senior",
         "hourly_cost": 100.0,
-        "professional_id": f"PROF{timestamp}"
+        "professional_id": f"PROF{timestamp}",
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     assert resp.status_code == 200
@@ -28,9 +29,9 @@ def verify_allocation_percentage():
                 "level": "Senior",
                 "quantity": 1,
                 "allocation_percentage": 50.0,
-                "professional_id": prof_id
+                "professional_id": prof_id,
             }
-        ]
+        ],
     }
     resp = requests.post(f"{BASE_URL}/offers/", json=offer_data)
     if resp.status_code != 200:
@@ -45,7 +46,7 @@ def verify_allocation_percentage():
         "start_date": datetime.date.today().isoformat(),
         "duration_months": 1,
         "tax_rate": 10.0,
-        "margin_rate": 20.0
+        "margin_rate": 20.0,
     }
     resp = requests.post(f"{BASE_URL}/projects/", json=project_data)
     assert resp.status_code == 200
@@ -61,25 +62,30 @@ def verify_allocation_percentage():
     resp = requests.get(f"{BASE_URL}/projects/{project_id}/allocation_table")
     assert resp.status_code == 200
     data = resp.json()
-    
+
     # 6. Verify hours
     allocations = data["allocations"]
     assert len(allocations) == 1
     allocation = allocations[0]
-    
-    # Check weekly hours    
+
+    # Check weekly hours
     weeks = allocation["weekly_hours"]
     for week_num, week_data in weeks.items():
         hours_allocated = week_data["hours_allocated"]
         available_hours = week_data["available_hours"]
-        
+
         # Formula: available_hours * percentage
         expected_hours = available_hours * 0.5
-        
-        print(f"Week {week_num}: Allocated {hours_allocated}, Available {available_hours}, Expected {expected_hours}")
-        assert abs(hours_allocated - expected_hours) < 0.01, f"Week {week_num} mismatch: got {hours_allocated}, expected {expected_hours}"
+
+        print(
+            f"Week {week_num}: Allocated {hours_allocated}, Available {available_hours}, Expected {expected_hours}"
+        )
+        assert abs(hours_allocated - expected_hours) < 0.01, (
+            f"Week {week_num} mismatch: got {hours_allocated}, expected {expected_hours}"
+        )
 
     print("Verification successful!")
+
 
 if __name__ == "__main__":
     try:
