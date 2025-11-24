@@ -352,7 +352,7 @@ export async function renderProjects(container) {
 
             document.getElementById('price-result').style.display = 'block';
 
-            alert(`Salvos ${result.updated_count} itens e preço calculado!`);
+            //alert(`Salvos ${result.updated_count} itens e preço calculado!`);
 
         } catch (error) {
             alert('Erro ao salvar/calcular: ' + error.message);
@@ -372,7 +372,7 @@ export async function renderProjects(container) {
             const filename = `projeto_${project.name.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
 
             await api.downloadBlob(`/projects/${currentProjectId}/export_excel`, filename);
-            alert('Excel exportado com sucesso!');
+            //alert('Excel exportado com sucesso!');
         } catch (error) {
             alert('Erro ao exportar: ' + error.message);
         }
@@ -411,7 +411,7 @@ export async function renderProjects(container) {
 
             modalAddProf.style.display = 'none';
             document.getElementById('input-add-prof-rate').value = '';
-            alert('Profissional adicionado com sucesso!');
+            //alert('Profissional adicionado com sucesso!');
             loadAllocationTable(currentProjectId);
         } catch (error) {
             alert('Erro ao adicionar profissional: ' + error.message);
@@ -442,7 +442,7 @@ export async function renderProjects(container) {
         if (confirm(`Tem certeza que deseja remover ${name} deste projeto?`)) {
             try {
                 await api.delete(`/projects/${currentProjectId}/allocations/${allocationId}`);
-                alert('Profissional removido.');
+                //alert('Profissional removido.');
                 loadAllocationTable(currentProjectId);
             } catch (error) {
                 alert('Erro ao remover profissional: ' + error.message);
