@@ -71,22 +71,22 @@ export async function renderProjects(container) {
                         
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Custo Total</span>
+                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Custo</span>
                                 <span id="res-cost" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Venda Total</span>
+                                <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Venda</span>
                                 <span id="res-selling" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--md-sys-color-outline-variant, #C4C7C5);">
-                                <span id="label-margin-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem Total</span>
+                                <span id="label-margin-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Margem</span>
                                 <span id="res-margin" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span id="label-tax-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos Totais</span>
+                                <span id="label-tax-total" style="color: var(--md-sys-color-on-surface-variant); font-size: 0.875rem;">Impostos</span>
                                 <span id="res-tax" style="font-weight: 500; color: var(--md-sys-color-on-surface); font-size: 1rem;"></span>
                             </div>
                         </div>

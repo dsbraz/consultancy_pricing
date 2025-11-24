@@ -447,23 +447,6 @@ def add_professional_to_project(
         logger.warning(f"Professional not found: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
 
-    # Check if already allocated
-    existing = (
-        db.query(models.ProjectAllocation)
-        .filter(
-            models.ProjectAllocation.project_id == project_id,
-            models.ProjectAllocation.professional_id == professional_id,
-        )
-        .first()
-    )
-    if existing:
-        logger.warning(
-            f"Professional already allocated: project_id={project_id}, professional_id={professional_id}"
-        )
-        raise HTTPException(
-            status_code=400, detail="Profissional já alocado neste projeto"
-        )
-
     # Calculate selling rate if not provided
     if selling_hourly_rate is None:
         margin_rate = (
