@@ -317,7 +317,10 @@ export async function renderProjects(container) {
             // 1. Save Allocations
             const result = await api.put(`/projects/${currentProjectId}/allocations`, updates);
 
-            // 2. Calculate Price
+            // 2. Get project data to access configured margin
+            const project = await api.get(`/projects/${currentProjectId}`);
+
+            // 3. Calculate Price
             const res = await api.get(`/projects/${currentProjectId}/calculate_price`);
             document.getElementById('res-cost').textContent = formatCurrency(res.total_cost);
             document.getElementById('res-selling').textContent = formatCurrency(res.total_selling);
@@ -325,6 +328,28 @@ export async function renderProjects(container) {
             document.getElementById('res-tax').textContent = formatCurrency(res.total_tax);
             document.getElementById('res-price').textContent = formatCurrency(res.final_price);
             document.getElementById('res-final-margin').textContent = res.final_margin_percent.toFixed(2) + '%';
+
+            // 4. Apply conditional color coding to margin card
+            const marginCard = document.getElementById('res-final-margin').parentElement;
+            const finalMargin = res.final_margin_percent;
+            const configuredMargin = project.margin_rate;
+
+            if (finalMargin >= configuredMargin) {
+                // Green - margin meets or exceeds target
+                marginCard.style.background = 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)';
+                marginCard.style.borderColor = '#10B981';
+                document.getElementById('res-final-margin').style.color = '#059669';
+                marginCard.querySelector('.material-icons').style.color = '#059669';
+                marginCard.querySelector('span:not(.material-icons)').style.color = '#065F46';
+            } else {
+                // Red - margin below target
+                marginCard.style.background = 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)';
+                marginCard.style.borderColor = '#EF4444';
+                document.getElementById('res-final-margin').style.color = '#DC2626';
+                marginCard.querySelector('.material-icons').style.color = '#DC2626';
+                marginCard.querySelector('span:not(.material-icons)').style.color = '#991B1B';
+            }
+
             document.getElementById('price-result').style.display = 'block';
 
             alert(`Salvos ${result.updated_count} itens e preço calculado!`);
