@@ -102,7 +102,7 @@ async def import_professionals_csv(file: UploadFile = File(...), db: Session = D
             level = row['level'].strip()
             
             # Parse is_template (default to False if not provided or invalid)
-            is_template_str = row.get('is_template', row.get('is_vacancy', 'false')).strip().lower()
+            is_template_str = row.get('is_template', 'false').strip().lower()
             is_template = is_template_str in ['true', '1', 'yes', 'sim', 'verdadeiro']
             
             # Parse hourly_cost (default to 0.0 if not provided or invalid)

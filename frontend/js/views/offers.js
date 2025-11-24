@@ -179,7 +179,6 @@ export async function renderOffers(container) {
         currentItems.push({
             role: professional.role,
             level: professional.level,
-            quantity: 1,
             allocation_percentage: alloc,
             professional_id: parseInt(profId),
             professional_name: professional.name
@@ -199,7 +198,7 @@ export async function renderOffers(container) {
             listDiv.innerHTML = '<small style="color: #6b7280;">Nenhum item adicionado ainda</small>';
         } else {
             listDiv.innerHTML = currentItems.map((item, idx) => {
-                let label = `${item.quantity}x ${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
+                let label = `${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
                 if (item.professional_name) {
                     label = `<strong>${escapeHtml(item.professional_name)}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
                 } else if (item.professional_id) {
@@ -252,7 +251,6 @@ export async function renderOffers(container) {
         const itemsPayload = currentItems.map(i => ({
             role: i.role,
             level: i.level,
-            quantity: i.quantity,
             allocation_percentage: i.allocation_percentage,
             professional_id: i.professional_id
         }));
@@ -335,7 +333,7 @@ export async function renderOffers(container) {
                 </div>
                 <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
                     ${t.items.map(item => {
-            let label = `${item.quantity}x ${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
+            let label = `${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
             if (item.professional_id) {
                 const p = professionals.find(p => p.id == item.professional_id);
                 const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
@@ -378,7 +376,6 @@ export async function renderOffers(container) {
             currentItems = offer.items.map(item => ({
                 role: item.role,
                 level: item.level,
-                quantity: item.quantity,
                 allocation_percentage: item.allocation_percentage || 100,
                 professional_id: item.professional_id
             }));

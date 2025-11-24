@@ -23,7 +23,6 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
             offer_id=db_offer.id,
             role=item.role,
             level=item.level,
-            quantity=item.quantity,
             allocation_percentage=item.allocation_percentage,
             professional_id=item.professional_id
         )
@@ -59,7 +58,6 @@ def update_offer(offer_id: int, offer: schemas.OfferUpdate, db: Session = Depend
                 offer_id=db_offer.id,
                 role=item.role,
                 level=item.level,
-                quantity=item.quantity,
                 allocation_percentage=item.allocation_percentage,
                 professional_id=item.professional_id
             )

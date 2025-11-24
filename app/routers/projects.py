@@ -156,35 +156,18 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     for item in offer.items:
         professionals_to_allocate = []
         
-        if item.professional_id:
-            prof = db.query(models.Professional).filter(models.Professional.id == item.professional_id).first()
-            if prof:
-                professionals_to_allocate.append(prof)
-        else:
-            vacancies = db.query(models.Professional).filter(
-                models.Professional.role == item.role,
-                models.Professional.level == item.level,
-                models.Professional.is_vacancy == True
-            ).limit(item.quantity).all()
-            
-            needed = item.quantity
-            current = len(vacancies)
-            
-            if current < needed:
-                for i in range(needed - current):
-                    new_vacancy = models.Professional(
-                        pid=f"VAC-{uuid.uuid4().hex[:8].upper()}",
-                        name=f"Vaga {item.role} {item.level} {i+1}",
-                        role=item.role,
-                        level=item.level,
-                        is_vacancy=True,
-                        hourly_cost=100.0  # Default cost
-                    )
-                    db.add(new_vacancy)
-                    db.flush()
-                    vacancies.append(new_vacancy)
-            
-            professionals_to_allocate.extend(vacancies[:needed])
+        if not item.professional_id:
+            # Should not happen with current schema, but safe guard
+            logger.warning(f"Item without professional_id in offer {offer_id}")
+            continue
+
+        prof = db.query(models.Professional).filter(models.Professional.id == item.professional_id).first()
+        if not prof:
+            logger.warning(f"Professional {item.professional_id} not found for offer item")
+            continue
+
+        # Treat all professionals the same, regardless of is_template flag
+        professionals_to_allocate.append(prof)
         
         for professional in professionals_to_allocate:
             existing = db.query(models.ProjectAllocation).filter(

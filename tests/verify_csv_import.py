@@ -11,7 +11,7 @@ def verify_csv_import():
     csv_content = """pid,name,role,level,is_template,hourly_cost
 PROF001,Test Professional 1,Desenvolvedor,Sênior,false,150.00
 PROF002,Test Professional 2,Designer,Pleno,false,120.00
-VAC001,Test Vacancy,Desenvolvedor,Júnior,true,80.00"""
+VAC001,Test Template,Desenvolvedor,Júnior,true,80.00"""
     
     csv_file_path = "/tmp/test_professionals.csv"
     with open(csv_file_path, 'w') as f:

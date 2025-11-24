@@ -43,7 +43,6 @@ class Professional(ProfessionalBase):
 class OfferItemBase(BaseModel):
     role: str = Field(..., min_length=1)
     level: str = Field(..., min_length=1)
-    quantity: int = Field(default=1, ge=1)
     allocation_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
     professional_id: int
 

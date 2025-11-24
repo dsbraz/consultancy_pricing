@@ -3,7 +3,7 @@ import urllib.request
 import urllib.error
 from datetime import date
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 def make_request(method, endpoint, data=None, params=None):
     url = f"{BASE_URL}{endpoint}"
@@ -38,28 +38,40 @@ def test_offer_flow():
         "role": "Architect",
         "level": "Principal",
         "hourly_cost": 200.0,
-        "professional_id": "SPEC001"
+        "pid": "SPEC001"
     }
     prof = make_request('POST', '/professionals/', data=prof_data)
     prof_id = prof["id"]
     print(f"Created professional: {prof['name']} (ID: {prof_id})")
     
-    # 2. Create Offer with Specific Professional
-    print("\n2. Creating Offer with Specific Professional...")
+    # 2a. Create Template Professional
+    print("\n2a. Creating Template Professional...")
+    tmpl_data = {
+        "name": "Template Developer Junior",
+        "role": "Developer",
+        "level": "Junior",
+        "hourly_cost": 100.0,
+        "pid": "TMPL001",
+        "is_template": True
+    }
+    tmpl = make_request('POST', '/professionals/', data=tmpl_data)
+    tmpl_id = tmpl["id"]
+    print(f"Created template: {tmpl['name']} (ID: {tmpl_id})")
+
+    # 2b. Create Offer with Specific Professional and Template
+    print("\n2b. Creating Offer with Specific Professional and Template...")
     off_data = {
         "name": "Specialist Team Offer",
         "items": [
             {
                 "role": "Architect",
                 "level": "Principal",
-                "quantity": 1,
                 "professional_id": prof_id
             },
             {
                 "role": "Developer",
                 "level": "Junior",
-                "quantity": 1
-                # No professional_id, should find vacancy
+                "professional_id": tmpl_id
             }
         ]
     }
@@ -92,7 +104,7 @@ def test_offer_flow():
     allocations = table_data["allocations"]
     
     found_specialist = False
-    found_vacancy = False
+    found_template = False
     
     for alloc in allocations:
         p = alloc["professional"]
@@ -106,12 +118,12 @@ def test_offer_flow():
             else:
                 print(f"Selling Rate Incorrect: {alloc['selling_hourly_rate']} (Expected {expected_rate})")
                 
-        elif "Vaga Developer Junior" in p["name"]:
-            found_vacancy = True
-            print(f"Found Vacancy: {p['name']}")
+        elif p["id"] == tmpl_id:
+            found_template = True
+            print(f"Found Template: {p['name']} (ID: {p['id']} - Matches Original)")
             
     assert found_specialist, "Specific professional not found in allocations"
-    assert found_vacancy, "Vacancy not found in allocations"
+    assert found_template, "Template not found in allocations"
     
     print("\nOffer verification passed successfully!")
 
