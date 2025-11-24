@@ -34,8 +34,7 @@ class OfferItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     offer_id = Column(Integer, ForeignKey("offers.id"), nullable=False)
     professional_id = Column(Integer, ForeignKey("professionals.id"), nullable=False)
-    role = Column(String, nullable=False)
-    level = Column(String, nullable=False)
+
     allocation_percentage = Column(Float, default=100.0, nullable=False)
 
     offer = relationship("Offer", back_populates="items")

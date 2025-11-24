@@ -198,14 +198,15 @@ export async function renderOffers(container) {
             listDiv.innerHTML = '<small style="color: #6b7280;">Nenhum item adicionado ainda</small>';
         } else {
             listDiv.innerHTML = currentItems.map((item, idx) => {
-                let label = `${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
-                if (item.professional_name) {
-                    label = `<strong>${escapeHtml(item.professional_name)}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
-                } else if (item.professional_id) {
-                    // Fallback if name missing in object (e.g. from edit load)
+                let label = '';
+                if (item.professional_id) {
                     const p = professionals.find(p => p.id == item.professional_id);
-                    const pName = p ? escapeHtml(p.name) : 'Desconhecido';
-                    label = `<strong>${pName}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
+                    const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
+                    const pRole = p ? escapeHtml(p.role) : (item.role ? escapeHtml(item.role) : '?');
+                    const pLevel = p ? escapeHtml(p.level) : (item.level ? escapeHtml(item.level) : '?');
+                    label = `<strong>${pName}</strong> (${pRole} ${pLevel})`;
+                } else {
+                    label = `${escapeHtml(item.role || '?')} - ${escapeHtml(item.level || '?')}`;
                 }
 
                 const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
@@ -249,8 +250,6 @@ export async function renderOffers(container) {
 
         // Clean items for API
         const itemsPayload = currentItems.map(i => ({
-            role: i.role,
-            level: i.level,
             allocation_percentage: i.allocation_percentage,
             professional_id: i.professional_id
         }));
@@ -333,11 +332,13 @@ export async function renderOffers(container) {
                 </div>
                 <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
                     ${t.items.map(item => {
-            let label = `${escapeHtml(item.role)} - ${escapeHtml(item.level)}`;
+            let label = '';
             if (item.professional_id) {
                 const p = professionals.find(p => p.id == item.professional_id);
                 const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
-                label = `<strong>${pName}</strong> (${escapeHtml(item.role)} ${escapeHtml(item.level)})`;
+                const pRole = p ? escapeHtml(p.role) : '?';
+                const pLevel = p ? escapeHtml(p.level) : '?';
+                label = `<strong>${pName}</strong> (${pRole} ${pLevel})`;
             }
             const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
             label += allocLabel;
@@ -373,12 +374,16 @@ export async function renderOffers(container) {
 
         if (offer) {
             editingId = id;
-            currentItems = offer.items.map(item => ({
-                role: item.role,
-                level: item.level,
-                allocation_percentage: item.allocation_percentage || 100,
-                professional_id: item.professional_id
-            }));
+            currentItems = offer.items.map(item => {
+                const p = professionals.find(p => p.id === item.professional_id);
+                return {
+                    role: p ? p.role : '?',
+                    level: p ? p.level : '?',
+                    allocation_percentage: item.allocation_percentage || 100,
+                    professional_id: item.professional_id,
+                    professional_name: p ? p.name : '?'
+                };
+            });
 
             document.getElementById('modal-offer-title').textContent = 'Editar Oferta';
             document.getElementById('btn-save-offer').textContent = 'Atualizar Oferta';

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List
 
 import logging
@@ -53,7 +54,7 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     projects = (
         db.query(models.Project)
-        .order_by(models.Project.name)
+        .order_by(func.lower(models.Project.name))
         .offset(skip)
         .limit(limit)
         .all()

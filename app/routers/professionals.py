@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 import csv
 import io
@@ -41,7 +42,7 @@ def create_professional(
 def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     professionals = (
         db.query(models.Professional)
-        .order_by(models.Professional.name)
+        .order_by(func.lower(models.Professional.name))
         .offset(skip)
         .limit(limit)
         .all()

@@ -47,17 +47,8 @@ class Professional(ProfessionalBase):
 
 
 class OfferItemBase(BaseModel):
-    role: str = Field(..., min_length=1)
-    level: str = Field(..., min_length=1)
     allocation_percentage: float = Field(default=100.0, ge=0.0, le=100.0)
     professional_id: int
-
-    @field_validator("role", "level")
-    @classmethod
-    def validate_non_empty_string(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip()
 
 
 class OfferItemCreate(OfferItemBase):

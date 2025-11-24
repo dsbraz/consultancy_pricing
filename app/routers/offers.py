@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 import logging
 
@@ -22,8 +23,6 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
     for item in offer.items:
         db_item = models.OfferItem(
             offer_id=db_offer.id,
-            role=item.role,
-            level=item.level,
             allocation_percentage=item.allocation_percentage,
             professional_id=item.professional_id,
         )
@@ -39,7 +38,7 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
 def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     offers = (
         db.query(models.Offer)
-        .order_by(models.Offer.name)
+        .order_by(func.lower(models.Offer.name))
         .offset(skip)
         .limit(limit)
         .all()
@@ -69,8 +68,6 @@ def update_offer(
         for item in offer.items:
             db_item = models.OfferItem(
                 offer_id=db_offer.id,
-                role=item.role,
-                level=item.level,
                 allocation_percentage=item.allocation_percentage,
                 professional_id=item.professional_id,
             )
