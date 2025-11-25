@@ -54,12 +54,17 @@ export async function renderProjects(container) {
                 <p style="color: #6b7280;">Nenhuma alocação ainda. Aplique uma oferta ou crie alocações manualmente.</p>
             </div>
             
-            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                <button id="btn-save-calc" class="btn btn-primary" style="display:none;">Salvar & Calcular</button>
-                <button id="btn-export-excel" class="btn" style="display:none;">
-                    <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">file_download</span>
-                    Exportar para Excel
-                </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-save-calc" class="btn btn-primary" style="display:none;">Salvar & Calcular</button>
+                    <button id="btn-export-excel" class="btn" style="display:none;">
+                        <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">file_download</span>
+                        Exportar para Excel
+                    </button>
+                </div>
+                <div id="project-total-hours" style="font-weight: 600; font-size: 1.1rem; color: var(--md-sys-color-on-surface); display: none;">
+                    Total de horas: <span id="val-project-total-hours">0</span>h
+                </div>
             </div>
             
             <div id="price-result" style="display:none; margin-top: 1.5rem;">
@@ -572,6 +577,27 @@ export async function renderProjects(container) {
 
         container.innerHTML = html;
 
+        // Show/Hide total hours container based on data
+        const totalHoursContainer = document.getElementById('project-total-hours');
+        if (totalHoursContainer) {
+            totalHoursContainer.style.display = (data.allocations && data.allocations.length > 0) ? 'block' : 'none';
+        }
+
+        const updateProjectTotalHours = () => {
+            const allHoursInputs = container.querySelectorAll('.alloc-input-hours');
+            let total = 0;
+            allHoursInputs.forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            const display = document.getElementById('val-project-total-hours');
+            if (display) {
+                display.textContent = Math.round(total);
+            }
+        };
+
+        // Initial calculation
+        updateProjectTotalHours();
+
         // Apply colors to margin cells based on configured margin
         if (currentProjectData && currentProjectData.margin_rate !== undefined) {
             const rows = container.querySelectorAll('tbody tr');
@@ -610,6 +636,7 @@ export async function renderProjects(container) {
 
                 inputs.forEach(input => {
                     input.addEventListener('input', updateRowTotal);
+                    input.addEventListener('input', updateProjectTotalHours);
                 });
             }
 
