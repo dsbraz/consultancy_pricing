@@ -329,8 +329,8 @@ export async function renderProjects(container) {
 
             // 3. Apply conditional color coding to margin card
             const marginCard = document.getElementById('res-final-margin').parentElement;
-            const finalMargin = res.final_margin_percent.toFixed(3);
-            const configuredMargin = currentProjectData.margin_rate.toFixed(3);
+            const finalMargin = res.final_margin_percent.toFixed(2);
+            const configuredMargin = currentProjectData.margin_rate.toFixed(2);
 
             if (finalMargin >= configuredMargin) {
                 // Green - margin meets or exceeds target
