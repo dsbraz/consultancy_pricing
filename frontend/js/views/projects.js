@@ -59,11 +59,11 @@ export async function renderProjects(container) {
                     <button id="btn-save-calc" class="btn btn-primary" style="display:none;">Salvar & Calcular</button>
                     <button id="btn-export-excel" class="btn" style="display:none;">
                         <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">file_download</span>
-                        Exportar para Excel
+                        Excel
                     </button>
                     <button id="btn-export-png" class="btn" style="display:none;">
                         <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">image</span>
-                        Exportar PNG
+                        PNG (cliente)
                     </button>
                 </div>
                 <div id="project-total-hours" style="font-weight: 600; font-size: 1.1rem; color: var(--md-sys-color-on-surface); display: none;">
