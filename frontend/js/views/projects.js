@@ -717,6 +717,9 @@ export async function renderProjects(container) {
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn btn-sm" data-action="view" data-project-id="${p.id}">Visualizar</button>
                         <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}">Editar</button>
+                        <button class="btn btn-sm" data-action="clone" data-project-id="${p.id}" title="Clonar Projeto">
+                            <span class="material-icons" style="font-size: 1.1rem;">content_copy</span>
+                        </button>
                         <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}">Excluir</button>
                     </div>
                 </div>
@@ -733,6 +736,8 @@ export async function renderProjects(container) {
                     window.viewProject(projectId);
                 } else if (action === 'edit') {
                     window.editProject(projectId);
+                } else if (action === 'clone') {
+                    window.cloneProject(projectId);
                 } else if (action === 'delete') {
                     const projectName = btn.dataset.projectName;
                     window.deleteProject(projectId, projectName);
@@ -767,6 +772,18 @@ export async function renderProjects(container) {
         document.getElementById('proj-margin').value = project.margin_rate;
 
         modalProject.classList.add('active');
+    };
+
+    // Clone project
+    window.cloneProject = async (id) => {
+        if (confirm('Deseja clonar este projeto?')) {
+            try {
+                await api.post(`/projects/${id}/clone`, {});
+                loadProjects();
+            } catch (error) {
+                alert('Erro ao clonar projeto: ' + error.message);
+            }
+        }
     };
 
     // Delete project

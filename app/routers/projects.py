@@ -586,3 +586,61 @@ def export_project_excel(project_id: int, db: Session = Depends(get_db)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.post("/projects/{project_id}/clone", response_model=schemas.Project)
+def clone_project(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Cloning project: id={project_id}")
+
+    # 1. Fetch original project with all relationships
+    original_project = (
+        db.query(models.Project)
+        .options(
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.weekly_allocations
+            )
+        )
+        .filter(models.Project.id == project_id)
+        .first()
+    )
+
+    if not original_project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    # 2. Create new project
+    new_project = models.Project(
+        name=f"Cópia de {original_project.name}",
+        start_date=original_project.start_date,
+        duration_months=original_project.duration_months,
+        tax_rate=original_project.tax_rate,
+        margin_rate=original_project.margin_rate,
+    )
+    db.add(new_project)
+    db.flush()  # Get ID
+
+    # 3. Clone allocations
+    for original_alloc in original_project.allocations:
+        new_alloc = models.ProjectAllocation(
+            project_id=new_project.id,
+            professional_id=original_alloc.professional_id,
+            selling_hourly_rate=original_alloc.selling_hourly_rate,
+        )
+        db.add(new_alloc)
+        db.flush()  # Get ID
+
+        # 4. Clone weekly allocations
+        for original_weekly in original_alloc.weekly_allocations:
+            new_weekly = models.WeeklyAllocation(
+                allocation_id=new_alloc.id,
+                week_number=original_weekly.week_number,
+                hours_allocated=original_weekly.hours_allocated,
+                available_hours=original_weekly.available_hours,
+            )
+            db.add(new_weekly)
+
+    db.commit()
+    db.refresh(new_project)
+    logger.info(
+        f"Project cloned successfully: original_id={project_id}, new_id={new_project.id}"
+    )
+    return new_project
