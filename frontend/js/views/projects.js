@@ -117,7 +117,7 @@ export async function renderProjects(container) {
                         <div style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); padding: 1.5rem; border-radius: var(--md-sys-shape-corner-large); box-shadow: var(--md-sys-elevation-2); border: 1px solid #10B981;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <span class="material-icons" style="color: #059669; font-size: 1.25rem;">trending_up</span>
-                                <span style="font-size: 0.75rem; font-weight: 500; color: #065F46; text-transform: uppercase; letter-spacing: 0.5px;">Margem Final</span>
+                                <span style="font-size: 0.75rem; font-weight: 500; color: #065F46; text-transform: uppercase; letter-spacing: 0.5px;">Margem Final (sem impostos)</span>
                             </div>
                             <div id="res-final-margin" style="font-size: 2rem; font-weight: 700; color: #059669; line-height: 1.2;"></div>
                         </div>
