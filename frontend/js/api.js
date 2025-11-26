@@ -56,7 +56,7 @@ export const api = {
         return response.json();
     },
 
-    async downloadBlob(endpoint, filename) {
+    async downloadBlob(endpoint, fallbackFilename = null) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -65,11 +65,21 @@ export const api = {
         }
         const blob = await response.blob();
 
+        // Try to extract filename from Content-Disposition header
+        let filename = fallbackFilename;
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1].replace(/['"]/g, '');
+            }
+        }
+
         // Criar link temporário para download
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = filename || 'download';
         document.body.appendChild(a);
         a.click();
 

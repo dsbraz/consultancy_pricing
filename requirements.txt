@@ -7,3 +7,4 @@ pydantic==2.10.3
 python-multipart==0.0.19
 holidays==0.61
 openpyxl==3.1.5
+Pillow==10.4.0

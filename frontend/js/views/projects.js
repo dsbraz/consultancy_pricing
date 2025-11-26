@@ -61,6 +61,10 @@ export async function renderProjects(container) {
                         <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">file_download</span>
                         Exportar para Excel
                     </button>
+                    <button id="btn-export-png" class="btn" style="display:none;">
+                        <span class="material-icons" style="margin-right: 0.5rem; font-size: 1.125rem;">image</span>
+                        Exportar PNG
+                    </button>
                 </div>
                 <div id="project-total-hours" style="font-weight: 600; font-size: 1.1rem; color: var(--md-sys-color-on-surface); display: none;">
                     Total de horas: <span id="val-project-total-hours">0</span>h
@@ -370,14 +374,23 @@ export async function renderProjects(container) {
         }
 
         try {
-            const project = await api.get(`/projects/${currentProjectId}`);
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const filename = `projeto_${project.name.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
-
-            await api.downloadBlob(`/projects/${currentProjectId}/export_excel`, filename);
-            //alert('Excel exportado com sucesso!');
+            await api.downloadBlob(`/projects/${currentProjectId}/export_excel`);
         } catch (error) {
             alert('Erro ao exportar: ' + error.message);
+        }
+    };
+
+    // Export to PNG
+    document.getElementById('btn-export-png').onclick = async () => {
+        if (!currentProjectId) {
+            alert('Nenhum projeto selecionado.');
+            return;
+        }
+
+        try {
+            await api.downloadBlob(`/projects/${currentProjectId}/export_png`);
+        } catch (error) {
+            alert('Erro ao exportar PNG: ' + error.message);
         }
     };
 
@@ -467,6 +480,7 @@ export async function renderProjects(container) {
             renderAllocationTable(data);
             document.getElementById('btn-save-calc').style.display = 'inline-block';
             document.getElementById('btn-export-excel').style.display = 'inline-block';
+            document.getElementById('btn-export-png').style.display = 'inline-block';
         } catch (error) {
             console.error('Erro ao carregar tabela de alocação:', error);
         }

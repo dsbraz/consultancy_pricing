@@ -12,10 +12,51 @@ from app.schemas import schemas
 from app.services.pricing_service import PricingService
 from app.services.calendar_service import CalendarService
 from app.services.excel_service import ExcelExportService
+from app.services.png_export_service import PNGExportService
 from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# Helper functions to reduce code duplication
+def get_project_or_404(db: Session, project_id: int) -> models.Project:
+    """Get project by ID or raise 404"""
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        logger.warning(f"Project not found: id={project_id}")
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    return project
+
+
+def get_project_with_allocations(db: Session, project_id: int) -> models.Project:
+    """Get project with all allocations and related data for exports"""
+    project = (
+        db.query(models.Project)
+        .options(
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.professional
+            ),
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.weekly_allocations
+            ),
+        )
+        .filter(models.Project.id == project_id)
+        .first()
+    )
+    if not project:
+        logger.warning(f"Project not found: id={project_id}")
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    return project
+
+
+def generate_export_filename(project_name: str, extension: str, prefix: str = "") -> str:
+    """Generate standardized export filename with timestamp"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    clean_name = project_name.replace(' ', '_')
+    if prefix:
+        return f"{prefix}_{clean_name}_{timestamp}.{extension}"
+    return f"{clean_name}_{timestamp}.{extension}"
 
 
 @router.post("/projects/", response_model=schemas.Project)
@@ -543,6 +584,8 @@ def remove_professional_from_project(
     }
 
 
+
+
 @router.get("/projects/{project_id}/export_excel")
 def export_project_excel(project_id: int, db: Session = Depends(get_db)):
     """
@@ -550,40 +593,49 @@ def export_project_excel(project_id: int, db: Session = Depends(get_db)):
     Retorna arquivo .xlsx com informações do projeto, resumo financeiro e tabela de alocação.
     """
     logger.info(f"Exporting project to Excel: id={project_id}")
-    # Buscar projeto
-    project = (
-        db.query(models.Project)
-        .options(
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.professional
-            ),
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.weekly_allocations
-            ),
-        )
-        .filter(models.Project.id == project_id)
-        .first()
-    )
-
-    if not project:
-        logger.warning(f"Project not found for Excel export: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    
+    # Buscar projeto com alocações
+    project = get_project_with_allocations(db, project_id)
 
     # Gerar Excel
     excel_service = ExcelExportService(db)
     excel_file = excel_service.export_project_to_excel(project)
 
-    # Criar nome do arquivo com timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"projeto_{project.name.replace(' ', '_')}_{timestamp}.xlsx"
+    # Gerar nome do arquivo
+    filename = generate_export_filename(project.name, "xlsx", prefix="projeto")
 
     # Retornar como download
-    logger.info(
-        f"Excel export successful: project_id={project_id}, filename={filename}"
-    )
+    logger.info(f"Excel export successful: project_id={project_id}, filename={filename}")
     return StreamingResponse(
         excel_file,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/projects/{project_id}/export_png")
+def export_project_png(project_id: int, db: Session = Depends(get_db)):
+    """
+    Exporta um projeto completo para imagem PNG.
+    Retorna arquivo .png adequado para propostas comerciais.
+    """
+    logger.info(f"Exporting project to PNG: id={project_id}")
+    
+    # Buscar projeto com alocações
+    project = get_project_with_allocations(db, project_id)
+
+    # Gerar PNG
+    png_service = PNGExportService(db)
+    png_file = png_service.export_project_to_png(project)
+
+    # Gerar nome do arquivo
+    filename = generate_export_filename(project.name, "png")
+
+    # Retornar como download
+    logger.info(f"PNG export successful: project_id={project_id}, filename={filename}")
+    return StreamingResponse(
+        png_file,
+        media_type="image/png",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
