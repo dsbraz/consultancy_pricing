@@ -19,8 +19,8 @@ class PricingService:
         Total Cost = sum(hours_allocated * hourly_cost)
         Total Selling = sum(hours_allocated * selling_hourly_rate)
         Margin = Total Selling - Total Cost
-        Tax = Calculated such that Total Selling / (1 - tax_rate) - Total Selling
-        Final Price = Total Selling / (1 - tax_rate)
+        Tax = Total Selling * tax_rate
+        Final Price = Total Selling + Tax
         """
         logger.info(
             f"Calculating pricing for project: id={project.id}, name={project.name}"
@@ -48,16 +48,8 @@ class PricingService:
         total_margin = total_selling - total_cost
 
         tax_rate_decimal = project.tax_rate / 100.0
-        divisor = 1 - tax_rate_decimal
-        
-        if divisor > 0:
-            final_price = total_selling / divisor
-        else:
-            # Avoid division by zero if tax is 100% or more (unlikely but safe)
-            final_price = total_selling 
-            logger.warning(f"Invalid tax rate {project.tax_rate}% for project {project.id}, resulting in divisor <= 0")
-
-        total_tax = final_price - total_selling
+        total_tax = total_selling * tax_rate_decimal
+        final_price = total_selling + total_tax
 
         final_margin_percent = (
             (1 - (total_cost / total_selling)) * 100 if total_selling > 0 else 0
