@@ -11,6 +11,7 @@ class CalendarService:
         self.holidays = holidays.country_holidays(country_code, subdiv=state_code)
 
     def is_business_day(self, check_date: date) -> bool:
+        """Check if a date is a business day (not weekend or holiday)"""
         if check_date.weekday() >= 5:
             return False
         if check_date in self.holidays:

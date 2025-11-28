@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 def create_professional(
     professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)
 ):
+    """Create a new professional"""
     logger.info(
         f"Creating professional: pid={professional.pid}, name={professional.name}"
     )
@@ -41,6 +42,7 @@ def create_professional(
 
 @router.get("/professionals/", response_model=List[schemas.Professional])
 def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """List all professionals with pagination"""
     professionals = (
         db.query(models.Professional)
         .order_by(func.lower(models.Professional.name))
@@ -77,6 +79,7 @@ def update_professional(
     professional: schemas.ProfessionalUpdate,
     db: Session = Depends(get_db),
 ):
+    """Update a professional's details"""
     logger.info(f"Updating professional: id={professional_id}")
     db_professional = (
         db.query(models.Professional)
@@ -101,6 +104,7 @@ def update_professional(
 
 @router.delete("/professionals/{professional_id}")
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
+    """Delete a professional"""
     logger.info(f"Deleting professional: id={professional_id}")
     db_professional = (
         db.query(models.Professional)
@@ -135,7 +139,6 @@ async def import_professionals_csv(
     file: UploadFile = File(...), db: Session = Depends(get_db)
 ):
     """
-    Import professionals from CSV file.
     Import professionals from CSV file.
     Expected CSV format: pid,name,role,level,is_template,hourly_cost
     If a professional with the same pid exists, it will be updated.

@@ -57,6 +57,7 @@ logger.info(f"Frontend static files mounted from: {frontend_dir}")
 
 @app.get("/")
 def read_root():
+    """Root endpoint for API verification"""
     logger.debug("Root endpoint accessed")
     return {"message": "Welcome to Consultancy Pricing API"}
 

@@ -18,10 +18,10 @@ class ExcelExportService:
 
     def export_project_to_excel(self, project: Project) -> BytesIO:
         """
-        Exporta um projeto completo para arquivo Excel com 3 abas:
-        1. Informações do Projeto
-        2. Resumo Financeiro
-        3. Tabela de Alocação
+        Export a complete project to an Excel file with 3 sheets:
+        1. Project Information
+        2. Financial Summary
+        3. Allocation Table
         """
         wb = Workbook()
         wb.remove(wb.active)
@@ -36,7 +36,7 @@ class ExcelExportService:
         return output
 
     def _create_project_info_sheet(self, wb: Workbook, project: Project):
-        """Cria a aba de Informações do Projeto"""
+        """Create the Project Information sheet"""
         ws = wb.create_sheet("Informações do Projeto")
 
         header_font = Font(bold=True, size=12)
@@ -64,7 +64,7 @@ class ExcelExportService:
         ws.column_dimensions["B"].width = 40
 
     def _create_financial_summary_sheet(self, wb: Workbook, project: Project):
-        """Cria a aba de Resumo Financeiro"""
+        """Create the Financial Summary sheet"""
         ws = wb.create_sheet("Resumo Financeiro")
 
         pricing = self.pricing_service.calculate_project_pricing(project)
@@ -96,7 +96,7 @@ class ExcelExportService:
         ws.column_dimensions["B"].width = 25
 
     def _create_allocation_table_sheet(self, wb: Workbook, project: Project):
-        """Cria a aba de Tabela de Alocação"""
+        """Create the Allocation Table sheet"""
         ws = wb.create_sheet("Tabela de Alocação")
 
         weeks = self.calendar_service.get_weekly_breakdown(

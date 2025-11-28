@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/offers/", response_model=schemas.Offer)
 def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
+    """Create a new offer template"""
     logger.info(f"Creating offer: name={offer.name}, items_count={len(offer.items)}")
     db_offer = models.Offer(name=offer.name)
     db.add(db_offer)
@@ -37,6 +38,7 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
 
 @router.get("/offers/", response_model=List[schemas.Offer])
 def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """List all offer templates"""
     offers = (
         db.query(models.Offer)
         .order_by(func.lower(models.Offer.name))
@@ -50,6 +52,7 @@ def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 
 @router.get("/offers/{offer_id}", response_model=schemas.Offer)
 def read_offer(offer_id: int, db: Session = Depends(get_db)):
+    """Get a single offer template by ID"""
     offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
@@ -60,6 +63,7 @@ def read_offer(offer_id: int, db: Session = Depends(get_db)):
 def update_offer(
     offer_id: int, offer: schemas.OfferUpdate, db: Session = Depends(get_db)
 ):
+    """Update an offer template's details"""
     logger.info(f"Updating offer: id={offer_id}")
     db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not db_offer:
@@ -159,6 +163,7 @@ def delete_offer_item(offer_id: int, item_id: int, db: Session = Depends(get_db)
 
 @router.delete("/offers/{offer_id}")
 def delete_offer(offer_id: int, db: Session = Depends(get_db)):
+    """Delete an offer template"""
     logger.info(f"Deleting offer: id={offer_id}")
     db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
     if not db_offer:

@@ -57,6 +57,7 @@ def generate_export_filename(
 
 @router.post("/projects/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    """Create a new project"""
     if project.from_project_id:
         return _clone_project_logic(project, db)
 
@@ -147,6 +148,7 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
 
 @router.get("/projects/", response_model=List[schemas.Project])
 def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """List all projects with pagination"""
     projects = (
         db.query(models.Project)
         .order_by(func.lower(models.Project.name))
@@ -160,6 +162,7 @@ def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 
 @router.get("/projects/{project_id}", response_model=schemas.Project)
 def read_project(project_id: int, db: Session = Depends(get_db)):
+    """Get a single project by ID"""
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
@@ -170,6 +173,7 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
 def update_project(
     project_id: int, project: schemas.ProjectUpdate, db: Session = Depends(get_db)
 ):
+    """Update a project's details"""
     logger.info(f"Updating project: id={project_id}")
 
     db_project = (
@@ -247,6 +251,7 @@ def update_project(
 
 @router.delete("/projects/{project_id}")
 def delete_project(project_id: int, db: Session = Depends(get_db)):
+    """Delete a project and its allocations"""
     logger.info(f"Deleting project: id={project_id}")
     db_project = (
         db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -296,6 +301,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 def apply_offer_to_project(
     project_id: int, request: schemas.ApplyOfferRequest, db: Session = Depends(get_db)
 ):
+    """Apply an offer template to a project"""
     logger.info(
         f"Applying offer to project: project_id={project_id}, offer_id={request.offer_id}"
     )
@@ -394,6 +400,7 @@ def apply_offer_to_project(
 
 @router.get("/projects/{project_id}/pricing", response_model=schemas.ProjectPricing)
 def get_project_pricing(project_id: int, db: Session = Depends(get_db)):
+    """Calculate and retrieve project pricing details"""
     logger.info(f"Calculating price for project: id={project_id}")
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
@@ -647,14 +654,14 @@ def export_project(
     project_id: int, format: str = "xlsx", db: Session = Depends(get_db)
 ):
     """
-    Exporta um projeto completo para arquivo Excel ou PNG.
+    Export a complete project to an Excel or PNG file.
 
     Args:
-        project_id: ID do projeto
-        format: Formato de exportação ('xlsx' ou 'png')
+        project_id: Project ID
+        format: Export format ('xlsx' or 'png')
 
     Returns:
-        Arquivo Excel (.xlsx) ou PNG (.png) para download
+        Excel (.xlsx) or PNG (.png) file for download
     """
     logger.info(f"Exporting project: id={project_id}, format={format}")
 

@@ -28,7 +28,7 @@ class PNGExportService:
 
     def export_project_to_png(self, project: Project) -> BytesIO:
         """
-        Exporta um projeto completo para imagem PNG adequada para propostas comerciais.
+        Export a complete project to a PNG image suitable for commercial proposals.
         """
         img = Image.new("RGB", (self.width, self.height), self.bg_color)
         draw = ImageDraw.Draw(img, "RGBA")
