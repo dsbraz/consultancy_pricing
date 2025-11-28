@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from typing import List
@@ -85,9 +85,7 @@ def get_offer_items(offer_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
 
     items = (
-        db.query(models.OfferItem)
-        .filter(models.OfferItem.offer_id == offer_id)
-        .all()
+        db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).all()
     )
     return items
 
