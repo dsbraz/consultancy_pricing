@@ -248,24 +248,41 @@ export async function renderOffers(container) {
             return;
         }
 
-        // Clean items for API
         const itemsPayload = currentItems.map(i => ({
             allocation_percentage: i.allocation_percentage,
             professional_id: i.professional_id
         }));
 
-        if (editingId) {
-            // Update
-            await api.put(`/offers/${editingId}`, { name, items: itemsPayload });
-            editingId = null;
-        } else {
-            // Create
-            await api.post('/offers/', { name, items: itemsPayload });
-        }
+        try {
+            if (editingId) {
+                // Update offer name only
+                await api.put(`/offers/${editingId}`, { name });
 
-        modal.classList.remove('active');
-        clearForm();
-        loadOffers();
+                // Get current items from server
+                const existingItems = await api.get(`/offers/${editingId}/items`);
+
+                // Delete all existing items
+                for (const item of existingItems) {
+                    await api.delete(`/offers/${editingId}/items/${item.id}`);
+                }
+
+                // Add new items
+                for (const item of itemsPayload) {
+                    await api.post(`/offers/${editingId}/items`, item);
+                }
+
+                editingId = null;
+            } else {
+                // Create new offer with items
+                await api.post('/offers/', { name, items: itemsPayload });
+            }
+
+            modal.classList.remove('active');
+            clearForm();
+            loadOffers();
+        } catch (error) {
+            alert('Erro ao salvar oferta: ' + error.message);
+        }
     };
 
     function clearForm() {

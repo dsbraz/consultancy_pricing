@@ -186,10 +186,8 @@ export async function renderProjects(container) {
         </div>
     `;
 
-    // Load projects
     await loadProjects();
 
-    // Sort controls event listeners
     document.getElementById('sort-select').addEventListener('change', (e) => {
         currentSortBy = e.target.value;
         loadProjects();
@@ -202,7 +200,6 @@ export async function renderProjects(container) {
         loadProjects();
     });
 
-    // Modal controls for project creation/edit
     const modalProject = document.getElementById('modal-project');
 
     document.getElementById('btn-new-project').onclick = () => {
@@ -223,7 +220,6 @@ export async function renderProjects(container) {
         clearProjectForm();
     };
 
-    // Close modal when clicking outside
     modalProject.onclick = (e) => {
         if (e.target === modalProject) {
             modalProject.classList.remove('active');
@@ -231,7 +227,6 @@ export async function renderProjects(container) {
         }
     };
 
-    // Save (Create or Update)
     document.getElementById('btn-save-project').onclick = async () => {
         const name = document.getElementById('proj-name').value;
         const start_date = document.getElementById('proj-start').value;
@@ -245,12 +240,10 @@ export async function renderProjects(container) {
         }
 
         if (editingProjectId) {
-            // Update
             await api.put(`/projects/${editingProjectId}`, {
                 name, start_date, duration_months, tax_rate, margin_rate
             });
 
-            // If this project is currently being viewed, reload the allocation table
             if (currentProjectId === editingProjectId) {
                 loadAllocationTable(currentProjectId);
             }
@@ -260,7 +253,6 @@ export async function renderProjects(container) {
             clearProjectForm();
             loadProjects();
         } else {
-            // Create
             const project = await api.post('/projects/', {
                 name, start_date, duration_months, tax_rate, margin_rate, allocations: []
             });
@@ -283,11 +275,12 @@ export async function renderProjects(container) {
         document.getElementById('proj-margin').value = '40';
     }
 
-    // Apply Offer
     document.getElementById('btn-apply-off').onclick = async () => {
         const offId = document.getElementById('sel-offer').value;
         if (currentProjectId && offId) {
-            const res = await api.post(`/projects/${currentProjectId}/apply_offer/${offId}`, {});
+            const res = await api.post(`/projects/${currentProjectId}/offers`, {
+                offer_id: parseInt(offId)
+            });
             alert(`Oferta aplicada! Adicionados ${res.allocations.length} profissionais em ${res.weeks_count} semanas.`);
             loadAllocationTable(currentProjectId);
         }
@@ -297,9 +290,13 @@ export async function renderProjects(container) {
     document.getElementById('btn-save-calc').onclick = async () => {
         if (!allocationTableData) return;
 
+        const btn = document.getElementById('btn-save-calc');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons spin" style="font-size: 1.25rem;">refresh</span> Calculando...';
+
         const updates = [];
 
-        // Collect allocation-level selling rate updates
         const sellingInputs = document.querySelectorAll('.alloc-input-selling');
         sellingInputs.forEach(input => {
             const allocationId = parseInt(input.dataset.allocationId);
@@ -311,7 +308,6 @@ export async function renderProjects(container) {
             });
         });
 
-        // Collect weekly hours updates
         const hoursInputs = document.querySelectorAll('.alloc-input-hours');
         hoursInputs.forEach(input => {
             const weeklyAllocId = parseInt(input.dataset.weeklyAllocId);
@@ -324,11 +320,9 @@ export async function renderProjects(container) {
         });
 
         try {
-            // 1. Save Allocations
-            const result = await api.put(`/projects/${currentProjectId}/allocations`, updates);
+            await api.put(`/projects/${currentProjectId}/allocations`, updates);
+            const res = await api.get(`/projects/${currentProjectId}/pricing`);
 
-            // 2. Calculate Price
-            const res = await api.get(`/projects/${currentProjectId}/calculate_price`);
             document.getElementById('res-cost').textContent = formatCurrency(res.total_cost);
             document.getElementById('res-selling').textContent = formatCurrency(res.total_selling);
             document.getElementById('res-margin').textContent = formatCurrency(res.total_margin);
@@ -336,20 +330,21 @@ export async function renderProjects(container) {
             document.getElementById('res-price').textContent = formatCurrency(res.final_price);
             document.getElementById('res-final-margin').textContent = res.final_margin_percent.toFixed(2) + '%';
 
-            // 3. Apply conditional color coding to margin card
             const marginCard = document.getElementById('res-final-margin').parentElement;
             const finalMargin = res.final_margin_percent.toFixed(2);
-            const configuredMargin = currentProjectData.margin_rate.toFixed(2);
+
+            // Default to 0 if not available
+            const configuredMargin = (currentProjectData && currentProjectData.margin_rate !== undefined)
+                ? currentProjectData.margin_rate.toFixed(2)
+                : '0.00';
 
             if (finalMargin >= configuredMargin) {
-                // Green - margin meets or exceeds target
                 marginCard.style.background = 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)';
                 marginCard.style.borderColor = '#10B981';
                 document.getElementById('res-final-margin').style.color = '#059669';
                 marginCard.querySelector('.material-icons').style.color = '#059669';
                 marginCard.querySelector('span:not(.material-icons)').style.color = '#065F46';
             } else {
-                // Red - margin below target
                 marginCard.style.background = 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)';
                 marginCard.style.borderColor = '#EF4444';
                 document.getElementById('res-final-margin').style.color = '#DC2626';
@@ -359,14 +354,23 @@ export async function renderProjects(container) {
 
             document.getElementById('price-result').style.display = 'block';
 
-            //alert(`Salvos ${result.updated_count} itens e preço calculado!`);
+            // Success feedback
+            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Salvo!';
+            btn.classList.add('btn-success');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('btn-success');
+            }, 2000);
 
         } catch (error) {
             alert('Erro ao salvar/calcular: ' + error.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     };
 
-    // Export to Excel
     document.getElementById('btn-export-excel').onclick = async () => {
         if (!currentProjectId) {
             alert('Nenhum projeto selecionado.');
@@ -374,13 +378,12 @@ export async function renderProjects(container) {
         }
 
         try {
-            await api.downloadBlob(`/projects/${currentProjectId}/export_excel`);
+            await api.downloadBlob(`/projects/${currentProjectId}/export?format=xlsx`);
         } catch (error) {
             alert('Erro ao exportar: ' + error.message);
         }
     };
 
-    // Export to PNG
     document.getElementById('btn-export-png').onclick = async () => {
         if (!currentProjectId) {
             alert('Nenhum projeto selecionado.');
@@ -388,13 +391,12 @@ export async function renderProjects(container) {
         }
 
         try {
-            await api.downloadBlob(`/projects/${currentProjectId}/export_png`);
+            await api.downloadBlob(`/projects/${currentProjectId}/export?format=png`);
         } catch (error) {
             alert('Erro ao exportar PNG: ' + error.message);
         }
     };
 
-    // Add Professional Modal Logic
     const modalAddProf = document.getElementById('modal-add-prof');
 
     document.getElementById('btn-add-professional').onclick = async () => {
@@ -427,7 +429,6 @@ export async function renderProjects(container) {
 
             modalAddProf.style.display = 'none';
             document.getElementById('input-add-prof-rate').value = '';
-            //alert('Profissional adicionado com sucesso!');
             loadAllocationTable(currentProjectId);
         } catch (error) {
             alert('Erro ao adicionar profissional: ' + error.message);
@@ -453,12 +454,10 @@ export async function renderProjects(container) {
         };
     }
 
-    // Remove Professional Logic
-    window.removeProfessionalFromAllocation = async (allocationId, name) => {
+    async function removeProfessional(allocationId, name) {
         if (confirm(`Tem certeza que deseja remover ${name} deste projeto?`)) {
             try {
                 await api.delete(`/projects/${currentProjectId}/allocations/${allocationId}`);
-                //alert('Profissional removido.');
                 loadAllocationTable(currentProjectId);
             } catch (error) {
                 alert('Erro ao remover profissional: ' + error.message);
@@ -475,9 +474,14 @@ export async function renderProjects(container) {
 
     async function loadAllocationTable(projectId) {
         try {
-            const data = await api.get(`/projects/${projectId}/allocation_table`);
-            allocationTableData = data;
-            renderAllocationTable(data);
+            const [weeks, allocations] = await Promise.all([
+                api.get(`/projects/${projectId}/timeline`),
+                api.get(`/projects/${projectId}/allocations`)
+            ]);
+
+            allocationTableData = { weeks, allocations };
+            renderAllocationTable(weeks, allocations);
+
             document.getElementById('btn-save-calc').style.display = 'inline-block';
             document.getElementById('btn-export-excel').style.display = 'inline-block';
             document.getElementById('btn-export-png').style.display = 'inline-block';
@@ -486,7 +490,6 @@ export async function renderProjects(container) {
         }
     }
 
-    // Helper function to apply color coding to margin cells
     function applyMarginColor(marginCell, marginPercent, configuredMargin) {
         const margin = parseFloat(marginPercent);
         const target = parseFloat(configuredMargin);
@@ -502,18 +505,16 @@ export async function renderProjects(container) {
         }
     }
 
-    function renderAllocationTable(data) {
+    function renderAllocationTable(weeks, allocations) {
         const container = document.getElementById('allocation-table-container');
 
-        if (!data.allocations || data.allocations.length === 0) {
+        if (!allocations || allocations.length === 0) {
             container.innerHTML = '<p style="color: #6b7280;">Nenhuma alocação ainda.</p>';
             return;
         }
 
-        // Build table
         let html = '<table class="allocation-table" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">';
 
-        // Header
         html += '<thead><tr style="background: #f9fafb;">';
         html += '<th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb; position: sticky; left: 0; background: #f9fafb; z-index: 10;">Profissional</th>';
         html += '<th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Função/Nível</th>';
@@ -521,7 +522,7 @@ export async function renderProjects(container) {
         html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #fef3c7; min-width: 100px;">Taxa de Venda (R$/h)</th>';
         html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #dcfce7; min-width: 100px;">Margem (%)</th>';
 
-        data.weeks.forEach(week => {
+        weeks.forEach(week => {
             const weekStart = new Date(week.week_start).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
             const weekEnd = new Date(week.week_end).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
             const hasHoliday = week.holidays && week.holidays.length > 0;
@@ -535,19 +536,24 @@ export async function renderProjects(container) {
         html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb;">Ações</th>';
         html += '</tr></thead>';
 
-        // Body - one row per professional
         html += '<tbody>';
-        data.allocations.forEach(alloc => {
+        allocations.forEach(alloc => {
+            const weeklyHoursMap = {};
+            if (alloc.weekly_allocations) {
+                alloc.weekly_allocations.forEach(wa => {
+                    weeklyHoursMap[wa.week_number] = wa;
+                });
+            }
+
             html += '<tr>';
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; position: sticky; left: 0; background: white; z-index: 5;">${escapeHtml(alloc.professional.name)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${escapeHtml(alloc.professional.role)} ${escapeHtml(alloc.professional.level)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center;">${formatCurrency(alloc.professional.hourly_cost)}</td>`;
 
-            // Selling Rate column (fixed per professional)
             html += `<td style="padding: 0.25rem; border: 1px solid #e5e7eb; text-align: center; background: #fef3c7;">
                 <input type="number" 
                     class="alloc-input-selling" 
-                    data-allocation-id="${alloc.allocation_id}"
+                    data-allocation-id="${alloc.id}"
                     data-cost="${alloc.professional.hourly_cost}"
                     value="${alloc.selling_hourly_rate.toFixed(2)}" 
                     min="0"
@@ -555,15 +561,14 @@ export async function renderProjects(container) {
                     style="width: 100%; padding: 0.25rem; text-align: center; border: 1px solid #d1d5db; border-radius: 0.25rem;">
             </td>`;
 
-            // Margin column (calculated from cost and selling rate)
             const marginPercent = alloc.selling_hourly_rate > 0
                 ? ((alloc.selling_hourly_rate - alloc.professional.hourly_cost) / alloc.selling_hourly_rate * 100).toFixed(2)
                 : '0.00';
             html += `<td class="margin-cell" data-margin="${marginPercent}" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; font-weight: 600;">${marginPercent}%</td>`;
 
             let totalHours = 0;
-            data.weeks.forEach(week => {
-                const weekData = alloc.weekly_hours[week.week_number];
+            weeks.forEach(week => {
+                const weekData = weeklyHoursMap[week.week_number];
                 if (weekData) {
                     totalHours += weekData.hours_allocated;
                     html += `<td style="padding: 0.25rem; border: 1px solid #e5e7eb; text-align: center;">
@@ -583,7 +588,7 @@ export async function renderProjects(container) {
 
             html += `<td class="total-hours-cell" style="padding: 0.5rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${Math.round(totalHours)}h</td>`;
             html += `<td style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb;">
-                <button class="btn btn-sm btn-danger" data-allocation-id="${alloc.allocation_id}" data-professional-name="${escapeHtml(alloc.professional.name)}">🗑️</button>
+                <button class="btn btn-sm btn-danger" data-allocation-id="${alloc.id}" data-professional-name="${escapeHtml(alloc.professional.name)}">🗑️</button>
             </td>`;
             html += '</tr>';
         });
@@ -591,10 +596,9 @@ export async function renderProjects(container) {
 
         container.innerHTML = html;
 
-        // Show/Hide total hours container based on data
         const totalHoursContainer = document.getElementById('project-total-hours');
         if (totalHoursContainer) {
-            totalHoursContainer.style.display = (data.allocations && data.allocations.length > 0) ? 'block' : 'none';
+            totalHoursContainer.style.display = (allocations && allocations.length > 0) ? 'block' : 'none';
         }
 
         const updateProjectTotalHours = () => {
@@ -609,10 +613,8 @@ export async function renderProjects(container) {
             }
         };
 
-        // Initial calculation
         updateProjectTotalHours();
 
-        // Apply colors to margin cells based on configured margin
         if (currentProjectData && currentProjectData.margin_rate !== undefined) {
             const rows = container.querySelectorAll('tbody tr');
             rows.forEach(row => {
@@ -624,16 +626,14 @@ export async function renderProjects(container) {
             });
         }
 
-        // Add event delegation for delete buttons
         container.querySelectorAll('button[data-allocation-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const allocationId = btn.dataset.allocationId;
                 const professionalName = btn.dataset.professionalName;
-                window.removeProfessionalFromAllocation(allocationId, professionalName);
+                removeProfessional(allocationId, professionalName);
             });
         });
 
-        // Add event listeners for dynamic total calculation
         const rows = container.querySelectorAll('tbody tr');
         rows.forEach(row => {
             const inputs = row.querySelectorAll('.alloc-input-hours');
@@ -654,7 +654,6 @@ export async function renderProjects(container) {
                 });
             }
 
-            // Add event listener for selling rate to update margin
             const sellingInput = row.querySelector('.alloc-input-selling');
             const marginCell = row.querySelector('.margin-cell');
 
@@ -668,7 +667,6 @@ export async function renderProjects(container) {
                     marginCell.textContent = `${marginPercent}%`;
                     marginCell.dataset.margin = marginPercent;
 
-                    // Apply color based on configured margin
                     if (currentProjectData && currentProjectData.margin_rate !== undefined) {
                         applyMarginColor(marginCell, marginPercent, currentProjectData.margin_rate);
                     }
@@ -691,7 +689,6 @@ export async function renderProjects(container) {
                 aVal = new Date(a.start_date);
                 bVal = new Date(b.start_date);
             } else if (sortBy === 'created_at') {
-                // If created_at exists, use it; otherwise fall back to id (older id = created earlier)
                 aVal = a.created_at ? new Date(a.created_at) : a.id;
                 bVal = b.created_at ? new Date(b.created_at) : b.id;
             }
@@ -715,7 +712,6 @@ export async function renderProjects(container) {
             return;
         }
 
-        // Sort projects
         const sortedProjects = sortProjects(projects, currentSortBy, currentSortDirection);
 
         listDiv.innerHTML = sortedProjects.map(p => `
@@ -740,27 +736,25 @@ export async function renderProjects(container) {
             </div>
         `).join('');
 
-        // Add event delegation for project action buttons
         listDiv.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
                 const projectId = parseInt(btn.dataset.projectId);
 
                 if (action === 'view') {
-                    window.viewProject(projectId);
+                    viewProject(projectId);
                 } else if (action === 'edit') {
-                    window.editProject(projectId);
+                    editProject(projectId);
                 } else if (action === 'clone') {
-                    window.cloneProject(projectId);
+                    cloneProject(projectId);
                 } else if (action === 'delete') {
                     const projectName = btn.dataset.projectName;
-                    window.deleteProject(projectId, projectName);
+                    deleteProject(projectId, projectName);
                 }
             });
         });
-    }
+    };
 
-    // View project details
     window.viewProject = async (id) => {
         const project = await api.get(`/projects/${id}`);
         currentProjectId = id;
@@ -771,7 +765,6 @@ export async function renderProjects(container) {
         loadAllocationTable(id);
     };
 
-    // Edit project
     window.editProject = async (id) => {
         const project = await api.get(`/projects/${id}`);
 
@@ -788,11 +781,19 @@ export async function renderProjects(container) {
         modalProject.classList.add('active');
     };
 
-    // Clone project
     window.cloneProject = async (id) => {
         if (confirm('Deseja clonar este projeto?')) {
             try {
-                await api.post(`/projects/${id}/clone`, {});
+                const original = await api.get(`/projects/${id}`);
+                await api.post('/projects/', {
+                    name: `Cópia de ${original.name}`,
+                    start_date: original.start_date,
+                    duration_months: original.duration_months,
+                    tax_rate: original.tax_rate,
+                    margin_rate: original.margin_rate,
+                    from_project_id: id,
+                    allocations: []
+                });
                 loadProjects();
             } catch (error) {
                 alert('Erro ao clonar projeto: ' + error.message);

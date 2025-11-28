@@ -89,13 +89,12 @@ def test_offer_flow():
 
     # 4. Apply Offer
     print("\n4. Applying Offer...")
-    res = make_request("POST", f"/projects/{proj_id}/apply_offer/{off_id}")
+    res = make_request("POST", f"/projects/{proj_id}/offers", data={"offer_id": off_id})
     print(f"Offer applied. Allocations: {res['allocations']}")
 
     # 5. Verify Allocations
     print("\n5. Verifying Allocations...")
-    table_data = make_request("GET", f"/projects/{proj_id}/allocation_table")
-    allocations = table_data["allocations"]
+    allocations = make_request("GET", f"/projects/{proj_id}/allocations")
 
     found_specialist = False
     found_template = False
@@ -105,7 +104,6 @@ def test_offer_flow():
         if p["id"] == prof_id:
             found_specialist = True
             print(f"Found Specialist: {p['name']}")
-            # Check selling rate (200 / 0.8 = 250)
             expected_rate = 250.0
             if abs(alloc["selling_hourly_rate"] - expected_rate) < 0.01:
                 print(f"Selling Rate Correct: {alloc['selling_hourly_rate']}")

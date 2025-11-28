@@ -1,7 +1,7 @@
 import requests
 import sys
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 
 def test_allocations():
@@ -14,6 +14,7 @@ def test_allocations():
         "role": "Developer",
         "level": "Senior",
         "hourly_cost": 100.0,
+        "pid": "TEST-ALLOC-001",
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
     if resp.status_code != 200:
@@ -54,17 +55,17 @@ def test_allocations():
         alloc_id = alloc_resp["allocation_id"]
         print(f"Professional added. Allocation ID: {alloc_id}")
 
-        # 4. Verify allocation exists in table
-        print("Verifying allocation in table...")
-        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocation_table")
+        # 4. Verify allocation exists in list
+        print("Verifying allocation in list...")
+        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocations")
         if resp.status_code != 200:
-            print(f"Failed to get allocation table: {resp.text}")
+            print(f"Failed to get allocations: {resp.text}")
             sys.exit(1)
-        table_data = resp.json()
+        allocations = resp.json()
 
         found = False
-        for alloc in table_data["allocations"]:
-            if alloc["allocation_id"] == alloc_id:
+        for alloc in allocations:
+            if alloc["id"] == alloc_id:
                 found = True
                 print("Allocation found in table.")
                 break
@@ -83,15 +84,15 @@ def test_allocations():
 
         # 6. Verify allocation is gone
         print("Verifying allocation is gone...")
-        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocation_table")
+        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocations")
         if resp.status_code != 200:
-            print(f"Failed to get allocation table: {resp.text}")
+            print(f"Failed to get allocations: {resp.text}")
             sys.exit(1)
-        table_data = resp.json()
+        allocations = resp.json()
 
         found = False
-        for alloc in table_data["allocations"]:
-            if alloc["allocation_id"] == alloc_id:
+        for alloc in allocations:
+            if alloc["id"] == alloc_id:
                 found = True
                 break
 

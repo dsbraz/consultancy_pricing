@@ -50,10 +50,12 @@ def get_project_with_allocations(db: Session, project_id: int) -> models.Project
     return project
 
 
-def generate_export_filename(project_name: str, extension: str, prefix: str = "") -> str:
+def generate_export_filename(
+    project_name: str, extension: str, prefix: str = ""
+) -> str:
     """Generate standardized export filename with timestamp"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    clean_name = project_name.replace(' ', '_')
+    clean_name = project_name.replace(" ", "_")
     if prefix:
         return f"{prefix}_{clean_name}_{timestamp}.{extension}"
     return f"{clean_name}_{timestamp}.{extension}"
@@ -61,6 +63,9 @@ def generate_export_filename(project_name: str, extension: str, prefix: str = ""
 
 @router.post("/projects/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    if project.from_project_id:
+        return _clone_project_logic(project, db)
+
     logger.info(
         f"Creating project: name={project.name}, duration={project.duration_months} months, allocations={len(project.allocations)}"
     )
@@ -89,6 +94,60 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
         f"Project created successfully: id={db_project.id}, name={db_project.name}"
     )
     return db_project
+
+
+def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.Project:
+    """Clone project from existing project"""
+    logger.info(f"Cloning project from id={project.from_project_id}")
+
+    original = (
+        db.query(models.Project)
+        .options(
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.weekly_allocations
+            )
+        )
+        .filter(models.Project.id == project.from_project_id)
+        .first()
+    )
+
+    if not original:
+        raise HTTPException(status_code=404, detail="Projeto original não encontrado")
+
+    new_project = models.Project(
+        name=project.name,
+        start_date=project.start_date,
+        duration_months=project.duration_months,
+        tax_rate=project.tax_rate,
+        margin_rate=project.margin_rate,
+    )
+    db.add(new_project)
+    db.flush()
+
+    for orig_alloc in original.allocations:
+        new_alloc = models.ProjectAllocation(
+            project_id=new_project.id,
+            professional_id=orig_alloc.professional_id,
+            selling_hourly_rate=orig_alloc.selling_hourly_rate,
+        )
+        db.add(new_alloc)
+        db.flush()
+
+        for orig_weekly in orig_alloc.weekly_allocations:
+            new_weekly = models.WeeklyAllocation(
+                allocation_id=new_alloc.id,
+                week_number=orig_weekly.week_number,
+                hours_allocated=orig_weekly.hours_allocated,
+                available_hours=orig_weekly.available_hours,
+            )
+            db.add(new_weekly)
+
+    db.commit()
+    db.refresh(new_project)
+    logger.info(
+        f"Project cloned: original_id={project.from_project_id}, new_id={new_project.id}"
+    )
+    return new_project
 
 
 @router.get("/projects/", response_model=List[schemas.Project])
@@ -211,23 +270,25 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     return {"message": "Project deleted successfully"}
 
 
-@router.post("/projects/{project_id}/apply_offer/{offer_id}")
-def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
+@router.post("/projects/{project_id}/offers")
+def apply_offer_to_project(
+    project_id: int, request: schemas.ApplyOfferRequest, db: Session = Depends(get_db)
+):
     logger.info(
-        f"Applying offer to project: project_id={project_id}, offer_id={offer_id}"
+        f"Applying offer to project: project_id={project_id}, offer_id={request.offer_id}"
     )
 
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     offer = (
         db.query(models.Offer)
         .options(joinedload(models.Offer.items))
-        .filter(models.Offer.id == offer_id)
+        .filter(models.Offer.id == request.offer_id)
         .first()
     )
 
     if not project or not offer:
         logger.warning(
-            f"Project or offer not found: project_id={project_id}, offer_id={offer_id}"
+            f"Project or offer not found: project_id={project_id}, offer_id={request.offer_id}"
         )
         raise HTTPException(status_code=404, detail="Projeto ou Oferta não encontrado")
 
@@ -308,10 +369,8 @@ def apply_offer(project_id: int, offer_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get(
-    "/projects/{project_id}/calculate_price", response_model=schemas.ProjectPricing
-)
-def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
+@router.get("/projects/{project_id}/pricing", response_model=schemas.ProjectPricing)
+def get_project_pricing(project_id: int, db: Session = Depends(get_db)):
     logger.info(f"Calculating price for project: id={project_id}")
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
@@ -319,6 +378,7 @@ def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
     pricing_service = PricingService(db)
+
     try:
         result = pricing_service.calculate_project_pricing(project)
         logger.info(
@@ -330,67 +390,43 @@ def calculate_project_price(project_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/projects/{project_id}/allocation_table")
-def get_allocation_table(project_id: int, db: Session = Depends(get_db)):
-    project = (
-        db.query(models.Project)
-        .options(
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.professional
-            ),
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.weekly_allocations
-            ),
-        )
-        .filter(models.Project.id == project_id)
-        .first()
-    )
-
+@router.get("/projects/{project_id}/timeline")
+def get_project_timeline(project_id: int, db: Session = Depends(get_db)):
+    """
+    Get the weekly timeline breakdown for a project.
+    """
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    # Get weekly breakdown
     calendar_service = CalendarService(country_code="BR")
     weeks = calendar_service.get_weekly_breakdown(
         project.start_date, project.duration_months
     )
+    return weeks
 
-    # Format allocations
-    allocations_data = []
-    for allocation in project.allocations:
-        weekly_data = {}
-        for weekly_alloc in allocation.weekly_allocations:
-            weekly_data[weekly_alloc.week_number] = {
-                "id": weekly_alloc.id,
-                "hours_allocated": weekly_alloc.hours_allocated,
-                "available_hours": weekly_alloc.available_hours,
-            }
 
-        allocations_data.append(
-            {
-                "allocation_id": allocation.id,
-                "professional": {
-                    "id": allocation.professional.id,
-                    "name": allocation.professional.name,
-                    "role": allocation.professional.role,
-                    "level": allocation.professional.level,
-                    "hourly_cost": allocation.professional.hourly_cost,
-                },
-                "selling_hourly_rate": allocation.selling_hourly_rate,
-                "weekly_hours": weekly_data,
-            }
+@router.get(
+    "/projects/{project_id}/allocations", response_model=List[schemas.ProjectAllocation]
+)
+def get_project_allocations(project_id: int, db: Session = Depends(get_db)):
+    """
+    Get all allocations for a project, including professional details and weekly breakdown.
+    """
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    allocations = (
+        db.query(models.ProjectAllocation)
+        .options(
+            joinedload(models.ProjectAllocation.professional),
+            joinedload(models.ProjectAllocation.weekly_allocations),
         )
-
-    return {
-        "project": {
-            "id": project.id,
-            "name": project.name,
-            "start_date": project.start_date.isoformat(),
-            "duration_months": project.duration_months,
-        },
-        "weeks": weeks,
-        "allocations": allocations_data,
-    }
+        .filter(models.ProjectAllocation.project_id == project_id)
+        .all()
+    )
+    return allocations
 
 
 @router.put("/projects/{project_id}/allocations")
@@ -417,7 +453,6 @@ def update_allocations(
 
     updated_count = 0
     for update in updates:
-        # Handle allocation-level updates (selling rate)
         allocation_id = update.get("allocation_id")
         if allocation_id:
             selling_rate = update.get("selling_hourly_rate")
@@ -431,7 +466,7 @@ def update_allocations(
                     allocation.selling_hourly_rate = selling_rate
                     updated_count += 1
 
-        # Handle weekly allocation updates (hours)
+        # Handle weekly allocation updates
         weekly_alloc_id = update.get("weekly_allocation_id")
         if weekly_alloc_id:
             hours = update.get("hours_allocated")
@@ -488,7 +523,6 @@ def add_professional_to_project(
         logger.warning(f"Professional not found: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
 
-    # Calculate selling rate if not provided
     if selling_hourly_rate is None:
         margin_rate = (
             project.margin_rate / 100.0
@@ -501,7 +535,6 @@ def add_professional_to_project(
         else:
             selling_hourly_rate = professional.hourly_cost / divisor
 
-    # Create allocation
     allocation = models.ProjectAllocation(
         project_id=project_id,
         professional_id=professional_id,
@@ -510,13 +543,11 @@ def add_professional_to_project(
     db.add(allocation)
     db.flush()
 
-    # Get weekly breakdown for the project
     calendar_service = CalendarService(country_code="BR")
     weeks = calendar_service.get_weekly_breakdown(
         project.start_date, project.duration_months
     )
 
-    # Create weekly allocations with 0 hours by default
     for week in weeks:
         weekly_alloc = models.WeeklyAllocation(
             allocation_id=allocation.id,
@@ -570,7 +601,6 @@ def remove_professional_from_project(
 
     professional_name = allocation.professional.name
 
-    # Delete allocation (weekly allocations will be deleted by cascade)
     db.delete(allocation)
     db.commit()
 
@@ -584,115 +614,44 @@ def remove_professional_from_project(
     }
 
 
-
-
-@router.get("/projects/{project_id}/export_excel")
-def export_project_excel(project_id: int, db: Session = Depends(get_db)):
+@router.get("/projects/{project_id}/export")
+def export_project(
+    project_id: int, format: str = "xlsx", db: Session = Depends(get_db)
+):
     """
-    Exporta um projeto completo para arquivo Excel.
-    Retorna arquivo .xlsx com informações do projeto, resumo financeiro e tabela de alocação.
+    Exporta um projeto completo para arquivo Excel ou PNG.
+
+    Args:
+        project_id: ID do projeto
+        format: Formato de exportação ('xlsx' ou 'png')
+
+    Returns:
+        Arquivo Excel (.xlsx) ou PNG (.png) para download
     """
-    logger.info(f"Exporting project to Excel: id={project_id}")
-    
-    # Buscar projeto com alocações
+    logger.info(f"Exporting project: id={project_id}, format={format}")
+
     project = get_project_with_allocations(db, project_id)
 
-    # Gerar Excel
-    excel_service = ExcelExportService(db)
-    excel_file = excel_service.export_project_to_excel(project)
-
-    # Gerar nome do arquivo
-    filename = generate_export_filename(project.name, "xlsx", prefix="projeto")
-
-    # Retornar como download
-    logger.info(f"Excel export successful: project_id={project_id}, filename={filename}")
-    return StreamingResponse(
-        excel_file,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
-
-
-@router.get("/projects/{project_id}/export_png")
-def export_project_png(project_id: int, db: Session = Depends(get_db)):
-    """
-    Exporta um projeto completo para imagem PNG.
-    Retorna arquivo .png adequado para propostas comerciais.
-    """
-    logger.info(f"Exporting project to PNG: id={project_id}")
-    
-    # Buscar projeto com alocações
-    project = get_project_with_allocations(db, project_id)
-
-    # Gerar PNG
-    png_service = PNGExportService(db)
-    png_file = png_service.export_project_to_png(project)
-
-    # Gerar nome do arquivo
-    filename = generate_export_filename(project.name, "png")
-
-    # Retornar como download
-    logger.info(f"PNG export successful: project_id={project_id}, filename={filename}")
-    return StreamingResponse(
-        png_file,
-        media_type="image/png",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
-
-
-@router.post("/projects/{project_id}/clone", response_model=schemas.Project)
-def clone_project(project_id: int, db: Session = Depends(get_db)):
-    logger.info(f"Cloning project: id={project_id}")
-
-    # 1. Fetch original project with all relationships
-    original_project = (
-        db.query(models.Project)
-        .options(
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.weekly_allocations
-            )
+    if format == "xlsx":
+        excel_service = ExcelExportService(db)
+        file = excel_service.export_project_to_excel(project)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = generate_export_filename(project.name, "xlsx", prefix="projeto")
+    elif format == "png":
+        png_service = PNGExportService(db)
+        file = png_service.export_project_to_png(project)
+        media_type = "image/png"
+        filename = generate_export_filename(project.name, "png")
+    else:
+        raise HTTPException(
+            status_code=400, detail="Formato inválido. Use 'xlsx' ou 'png'."
         )
-        .filter(models.Project.id == project_id)
-        .first()
-    )
 
-    if not original_project:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-
-    # 2. Create new project
-    new_project = models.Project(
-        name=f"Cópia de {original_project.name}",
-        start_date=original_project.start_date,
-        duration_months=original_project.duration_months,
-        tax_rate=original_project.tax_rate,
-        margin_rate=original_project.margin_rate,
-    )
-    db.add(new_project)
-    db.flush()  # Get ID
-
-    # 3. Clone allocations
-    for original_alloc in original_project.allocations:
-        new_alloc = models.ProjectAllocation(
-            project_id=new_project.id,
-            professional_id=original_alloc.professional_id,
-            selling_hourly_rate=original_alloc.selling_hourly_rate,
-        )
-        db.add(new_alloc)
-        db.flush()  # Get ID
-
-        # 4. Clone weekly allocations
-        for original_weekly in original_alloc.weekly_allocations:
-            new_weekly = models.WeeklyAllocation(
-                allocation_id=new_alloc.id,
-                week_number=original_weekly.week_number,
-                hours_allocated=original_weekly.hours_allocated,
-                available_hours=original_weekly.available_hours,
-            )
-            db.add(new_weekly)
-
-    db.commit()
-    db.refresh(new_project)
     logger.info(
-        f"Project cloned successfully: original_id={project_id}, new_id={new_project.id}"
+        f"Export successful: project_id={project_id}, format={format}, filename={filename}"
     )
-    return new_project
+    return StreamingResponse(
+        file,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

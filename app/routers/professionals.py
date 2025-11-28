@@ -53,6 +53,23 @@ def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(ge
     return professionals
 
 
+@router.get("/professionals/{professional_id}", response_model=schemas.Professional)
+def get_professional(professional_id: int, db: Session = Depends(get_db)):
+    """Get a single professional by ID"""
+    logger.debug(f"Fetching professional: id={professional_id}")
+    professional = (
+        db.query(models.Professional)
+        .filter(models.Professional.id == professional_id)
+        .first()
+    )
+
+    if not professional:
+        logger.warning(f"Professional not found: id={professional_id}")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+
+    return professional
+
+
 @router.put("/professionals/{professional_id:int}", response_model=schemas.Professional)
 def update_professional(
     professional_id: int,
@@ -126,11 +143,13 @@ async def import_professionals_csv(
     error_count = 0
     errors = []
 
+    # Read all rows into a list to allow for re-indexing if needed, though DictReader is used
+    rows = list(csv_reader)
+
     for row_num, row in enumerate(
-        csv_reader, start=2
-    ):  # Start at 2 to account for header
+        rows, start=2
+    ):  # Start at 2 for 1-based line numbers in CSV, assuming header is line 1
         try:
-            # Validate required fields
             if (
                 not row.get("pid")
                 or not row.get("name")

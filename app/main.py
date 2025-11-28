@@ -68,7 +68,6 @@ def health_check():
     Verifies API is running and database is accessible.
     """
     try:
-        # Check database connectivity
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         db.close()

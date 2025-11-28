@@ -52,7 +52,12 @@ class OfferItemBase(BaseModel):
 
 
 class OfferItemCreate(OfferItemBase):
-    pass
+    professional_id: int
+
+
+class OfferItemUpdate(BaseModel):
+    professional_id: Optional[int] = None
+    allocation_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
 
 
 class OfferItem(OfferItemBase):
@@ -96,6 +101,10 @@ class Offer(OfferBase):
 
     class Config:
         from_attributes = True
+
+
+class ApplyOfferRequest(BaseModel):
+    offer_id: int
 
 
 class WeeklyAllocationBase(BaseModel):
@@ -150,6 +159,7 @@ class ProjectBase(BaseModel):
 
 class ProjectCreate(ProjectBase):
     allocations: List[ProjectAllocationCreate] = []
+    from_project_id: Optional[int] = None  # For cloning from existing project
 
 
 class ProjectUpdate(BaseModel):
@@ -169,7 +179,6 @@ class ProjectUpdate(BaseModel):
 
 class Project(ProjectBase):
     id: int
-    allocations: List[ProjectAllocation] = []
 
     class Config:
         from_attributes = True
