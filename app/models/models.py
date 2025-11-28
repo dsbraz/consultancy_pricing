@@ -60,12 +60,12 @@ class ProjectAllocation(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     professional_id = Column(Integer, ForeignKey("professionals.id"), nullable=False)
-    selling_hourly_rate = Column(
-        Float, default=0.0, nullable=False
-    )  # Fixed selling rate for this professional in this project
     cost_hourly_rate = Column(
         Float, default=0.0, nullable=False
     )  # Fixed cost rate for this professional in this project (frozen at allocation time)
+    selling_hourly_rate = Column(
+        Float, default=0.0, nullable=False
+    )  # Fixed selling rate for this professional in this project
 
     project = relationship("Project", back_populates="allocations")
     professional = relationship("Professional", back_populates="project_allocations")

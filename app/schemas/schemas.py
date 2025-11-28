@@ -133,8 +133,8 @@ class WeeklyAllocation(WeeklyAllocationBase):
 
 class ProjectAllocationBase(BaseModel):
     professional_id: int
-    selling_hourly_rate: float = Field(default=0.0, ge=0.0)
     cost_hourly_rate: float = Field(default=0.0, ge=0.0)
+    selling_hourly_rate: float = Field(default=0.0, ge=0.0)
 
 
 
