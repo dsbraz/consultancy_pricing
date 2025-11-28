@@ -63,6 +63,9 @@ class ProjectAllocation(Base):
     selling_hourly_rate = Column(
         Float, default=0.0, nullable=False
     )  # Fixed selling rate for this professional in this project
+    cost_hourly_rate = Column(
+        Float, default=0.0, nullable=False
+    )  # Fixed cost rate for this professional in this project (frozen at allocation time)
 
     project = relationship("Project", back_populates="allocations")
     professional = relationship("Professional", back_populates="project_allocations")

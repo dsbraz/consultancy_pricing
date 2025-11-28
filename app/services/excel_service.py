@@ -147,7 +147,7 @@ class ExcelExportService:
                 professional.name,
                 professional.role,
                 professional.level,
-                f"R$ {professional.hourly_cost:.2f}",
+                f"R$ {allocation.cost_hourly_rate:.2f}",
                 f"R$ {allocation.selling_hourly_rate:.2f}",
             ]
 

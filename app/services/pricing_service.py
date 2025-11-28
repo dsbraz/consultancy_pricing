@@ -37,13 +37,14 @@ class PricingService:
             if not professional:
                 continue
 
-            hourly_cost = professional.hourly_cost
+            hourly_cost = allocation.cost_hourly_rate
             selling_rate = allocation.selling_hourly_rate
 
             for weekly_alloc in allocation.weekly_allocations:
                 hours = weekly_alloc.hours_allocated
                 total_cost += hours * hourly_cost
                 total_selling += hours * selling_rate
+
 
         total_margin = total_selling - total_cost
 

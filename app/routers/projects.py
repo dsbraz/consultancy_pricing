@@ -123,6 +123,7 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
             project_id=new_project.id,
             professional_id=orig_alloc.professional_id,
             selling_hourly_rate=orig_alloc.selling_hourly_rate,
+            cost_hourly_rate=orig_alloc.cost_hourly_rate,  # Copy frozen cost from original
         )
         db.add(new_alloc)
         db.flush()
@@ -364,6 +365,7 @@ def apply_offer_to_project(
                 project_id=project.id,
                 professional_id=professional.id,
                 selling_hourly_rate=selling_rate,
+                cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
             )
             db.add(db_alloc)
             db.flush()
@@ -560,6 +562,7 @@ def add_professional_to_project(
         project_id=project_id,
         professional_id=professional_id,
         selling_hourly_rate=selling_hourly_rate,
+        cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
     )
     db.add(allocation)
     db.flush()

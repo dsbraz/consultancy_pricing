@@ -627,13 +627,13 @@ export async function renderProjects(container) {
             html += '<tr>';
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; position: sticky; left: 0; background: white; z-index: 5;">${escapeHtml(alloc.professional.name)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${escapeHtml(alloc.professional.role)} ${escapeHtml(alloc.professional.level)}</td>`;
-            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center;">${formatCurrency(alloc.professional.hourly_cost)}</td>`;
+            html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center;">${formatCurrency(alloc.cost_hourly_rate)}</td>`;
 
             html += `<td style="padding: 0.25rem; border: 1px solid #e5e7eb; text-align: center; background: #fef3c7;">
                 <input type="number" 
                     class="alloc-input-selling" 
                     data-allocation-id="${alloc.id}"
-                    data-cost="${alloc.professional.hourly_cost}"
+                    data-cost="${alloc.cost_hourly_rate}"
                     value="${alloc.selling_hourly_rate.toFixed(2)}" 
                     min="0"
                     step="1"
@@ -641,7 +641,7 @@ export async function renderProjects(container) {
             </td>`;
 
             const marginPercent = alloc.selling_hourly_rate > 0
-                ? ((alloc.selling_hourly_rate - alloc.professional.hourly_cost) / alloc.selling_hourly_rate * 100).toFixed(2)
+                ? ((alloc.selling_hourly_rate - alloc.cost_hourly_rate) / alloc.selling_hourly_rate * 100).toFixed(2)
                 : '0.00';
             html += `<td class="margin-cell" data-margin="${marginPercent}" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; font-weight: 600;">${marginPercent}%</td>`;
 
