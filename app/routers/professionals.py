@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from typing import List
 import csv
 import io
@@ -110,8 +111,19 @@ def delete_professional(professional_id: int, db: Session = Depends(get_db)):
         logger.warning(f"Professional not found for deletion: id={professional_id}")
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
 
-    db.delete(db_professional)
-    db.commit()
+    try:
+        db.delete(db_professional)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(
+            f"Integrity error deleting professional: id={professional_id} (likely referenced by other records)"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir este profissional pois ele está associado a projetos ou ofertas.",
+        )
+
     logger.info(
         f"Professional deleted successfully: id={professional_id}, pid={db_professional.pid}"
     )

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from typing import List
 import logging
 
@@ -159,9 +160,20 @@ def delete_offer(offer_id: int, db: Session = Depends(get_db)):
         logger.warning(f"Offer not found for deletion: id={offer_id}")
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
 
-    db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
+    try:
+        db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
 
-    db.delete(db_offer)
-    db.commit()
+        db.delete(db_offer)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(
+            f"Integrity error deleting offer: id={offer_id} (likely referenced by other records)"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir esta oferta pois ela está sendo usada.",
+        )
+
     logger.info(f"Offer deleted successfully: id={offer_id}")
     return {"message": "Offer deleted successfully"}

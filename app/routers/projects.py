@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from typing import List
 
 import logging
@@ -260,12 +261,23 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
         logger.warning(f"Project not found for deletion: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    db.query(models.ProjectAllocation).filter(
-        models.ProjectAllocation.project_id == project_id
-    ).delete()
+    try:
+        db.query(models.ProjectAllocation).filter(
+            models.ProjectAllocation.project_id == project_id
+        ).delete()
 
-    db.delete(db_project)
-    db.commit()
+        db.delete(db_project)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(
+            f"Integrity error deleting project: id={project_id} (likely referenced by other records)"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir este projeto pois ele possui dependências.",
+        )
+
     logger.info(f"Project deleted successfully: id={project_id}")
     return {"message": "Project deleted successfully"}
 
