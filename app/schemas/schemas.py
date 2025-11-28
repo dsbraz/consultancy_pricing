@@ -97,6 +97,13 @@ class OfferUpdate(BaseModel):
 
 class Offer(OfferBase):
     id: int
+
+    class Config:
+        from_attributes = True
+
+
+class OfferWithItems(OfferBase):
+    id: int
     items: List[OfferItem] = []
 
     class Config:

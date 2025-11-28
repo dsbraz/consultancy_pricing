@@ -1,108 +1,118 @@
 import { api } from '../api.js';
 import { escapeHtml } from '../sanitize.js';
 
+
+
 export async function renderOffers(container) {
     let editingId = null;
     let currentItems = [];
-    let professionals = [];
-    let currentSortBy = 'name'; // default sort by name
-    let currentSortDirection = 'asc'; // default ascending
+    let professionalsMap = new Map();
+    let currentSortBy = 'name';
+    let currentSortDirection = 'asc';
 
-    // Load professionals first
+    // Initial HTML Structure
+    container.innerHTML = `
+    <div class="card">
+        <div class="header-actions">
+            <h3>Lista de Ofertas</h3>
+            <button id="btn-new-offer" class="btn btn-primary">
+                <span class="material-icons" style="margin-right: 0.5rem;">add</span>
+                Nova Oferta
+            </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0 0.5rem;">
+            <label style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ordenar por:</label>
+            <select id="sort-select" style="padding: 0.5rem; border: 1px solid var(--md-sys-color-outline); border-radius: 0.25rem; background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); font-size: 0.875rem;">
+                <option value="name">Nome</option>
+                <option value="items_count">Número de Itens</option>
+                <option value="created_at">Data de Criação</option>
+            </select>
+            <button id="sort-direction-btn" class="btn btn-sm" style="display: flex; align-items: center; gap: 0.25rem; min-width: auto; padding: 0.5rem 0.75rem;">
+                <span class="material-icons" id="sort-icon" style="font-size: 1.25rem;">arrow_upward</span>
+            </button>
+        </div>
+        <div id="offers-list">
+            <div style="padding: 2rem; text-align: center; color: #6b7280;">Carregando ofertas...</div>
+        </div>
+    </div>
+
+    <!-- Modal for Create/Edit Offer -->
+    <div id="modal-offer" class="modal-overlay">
+        <div class="modal-container wide">
+            <div class="modal-header">
+                <h3 id="modal-offer-title">Nova Oferta</h3>
+                <button class="modal-close" id="btn-close-modal-offer">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="off-name">
+                </div>
+                <div class="form-group">
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-bottom: 0.5rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Adicionar Profissional</label>
+                            <select id="off-prof-select" style="width: 100%; padding: 0.5rem;">
+                                <option value="">-- Carregando... --</option>
+                            </select>
+                        </div>
+                        <div style="width: 120px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Alocação (%)</label>
+                            <input type="number" id="off-alloc" value="100" style="width: 100%; padding: 0.5rem;" placeholder="100">
+                        </div>
+                    </div>
+                    <div id="prof-info" style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f3f4f6; border-radius: 0.25rem; display: none;">
+                        <small style="color: #374151;"><strong>Função/Nível:</strong> <span id="prof-role-level"></span></small>
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <button id="btn-add-item" class="btn btn-primary" style="width: 100%;">Adicionar à Oferta</button>
+                    </div>
+                    <small style="color: #6b7280;">Selecione um profissional da comparação. A função e nível serão preenchidos automaticamente com base no profissional selecionado.</small>
+                </div>
+                <div id="off-items-list" style="min-height: 60px; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem; margin-bottom: 1rem;">
+                    <small style="color: #6b7280;">Nenhum item adicionado ainda</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cancel-offer" class="btn">Cancelar</button>
+                <button id="btn-save-offer" class="btn btn-primary">Criar Oferta</button>
+            </div>
+        </div>
+    </div>
+  `;
+
+    // Fetch critical data in parallel
     try {
-        professionals = await api.get('/professionals/');
+        const [profData, offersData] = await Promise.all([
+            api.get('/professionals/'),
+            api.get('/offers/')
+        ]);
+
+        professionalsMap = new Map(profData.map(p => [p.id, p]));
+
+        populateProfessionalSelect(profData);
+        await enrichAndRenderOffers(offersData);
     } catch (e) {
-        console.error("Falha ao carregar profissionais", e);
+        console.error("Initialization error", e);
+        document.getElementById('offers-list').innerHTML = '<p style="color: red;">Erro ao carregar dados.</p>';
     }
 
-    container.innerHTML = `
-        <div class="card">
-            <div class="header-actions">
-                <h3>Lista de Ofertas</h3>
-                <button id="btn-new-offer" class="btn btn-primary">
-                    <span class="material-icons" style="margin-right: 0.5rem;">add</span>
-                    Nova Oferta
-                </button>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0 0.5rem;">
-                <label style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ordenar por:</label>
-                <select id="sort-select" style="padding: 0.5rem; border: 1px solid var(--md-sys-color-outline); border-radius: 0.25rem; background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); font-size: 0.875rem;">
-                    <option value="name">Nome</option>
-                    <option value="items_count">Número de Itens</option>
-                    <option value="created_at">Data de Criação</option>
-                </select>
-                <button id="sort-direction-btn" class="btn btn-sm" style="display: flex; align-items: center; gap: 0.25rem; min-width: auto; padding: 0.5rem 0.75rem;">
-                    <span class="material-icons" id="sort-icon" style="font-size: 1.25rem;">arrow_upward</span>
-                </button>
-            </div>
-            <div id="offers-list"></div>
-        </div>
+    // --- Event Listeners ---
 
-        <!-- Modal for Create/Edit Offer -->
-        <div id="modal-offer" class="modal-overlay">
-            <div class="modal-container wide">
-                <div class="modal-header">
-                    <h3 id="modal-offer-title">Nova Oferta</h3>
-                    <button class="modal-close" id="btn-close-modal-offer">
-                        <span class="material-icons">close</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nome</label>
-                        <input type="text" id="off-name">
-                    </div>
-                    <div class="form-group">
-                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-bottom: 0.5rem;">
-                            <div>
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Adicionar Profissional</label>
-                                <select id="off-prof-select" style="width: 100%; padding: 0.5rem;">
-                                    <option value="">-- Selecionar Profissional --</option>
-                                    ${professionals.filter(p => p.is_template).map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('')}
-                                </select>
-                            </div>
-                            <div style="width: 120px;">
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.75rem; letter-spacing: 0.5px; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase;">Alocação (%)</label>
-                                <input type="number" id="off-alloc" value="100" style="width: 100%; padding: 0.5rem;" placeholder="100">
-                            </div>
-                        </div>
-                        <div id="prof-info" style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f3f4f6; border-radius: 0.25rem; display: none;">
-                            <small style="color: #374151;"><strong>Função/Nível:</strong> <span id="prof-role-level"></span></small>
-                        </div>
-                        <div style="margin-bottom: 0.5rem;">
-                            <button id="btn-add-item" class="btn btn-primary" style="width: 100%;">Adicionar à Oferta</button>
-                        </div>
-                        <small style="color: #6b7280;">Selecione um profissional da comparação. A função e nível serão preenchidos automaticamente com base no profissional selecionado.</small>
-                    </div>
-                    <div id="off-items-list" style="min-height: 60px; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem; margin-bottom: 1rem;">
-                        <small style="color: #6b7280;">Nenhum item adicionado ainda</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="btn-cancel-offer" class="btn">Cancelar</button>
-                    <button id="btn-save-offer" class="btn btn-primary">Criar Oferta</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Load offers
-    await loadOffers();
-
-    // Sort controls event listeners
     document.getElementById('sort-select').addEventListener('change', (e) => {
         currentSortBy = e.target.value;
-        loadOffers();
+        reloadOffers();
     });
 
     document.getElementById('sort-direction-btn').addEventListener('click', () => {
         currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
         const icon = document.getElementById('sort-icon');
         icon.textContent = currentSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
-        loadOffers();
+        reloadOffers();
     });
 
-    // Modal controls
     const modal = document.getElementById('modal-offer');
 
     document.getElementById('btn-new-offer').onclick = () => {
@@ -115,25 +125,23 @@ export async function renderOffers(container) {
         modal.classList.add('active');
     };
 
-    document.getElementById('btn-close-modal-offer').onclick = () => {
-        modal.classList.remove('active');
-        clearForm();
-    };
+    document.getElementById('btn-close-modal-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
+    document.getElementById('btn-cancel-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
+    modal.onclick = (e) => { if (e.target === modal) { modal.classList.remove('active'); clearForm(); } };
 
-    document.getElementById('btn-cancel-offer').onclick = () => {
-        modal.classList.remove('active');
-        clearForm();
-    };
+    // --- Helper Functions ---
 
-    // Close modal when clicking outside
-    modal.onclick = (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
-            clearForm();
-        }
-    };
+    function populateProfessionalSelect(profList) {
+        const list = profList || Array.from(professionalsMap.values());
+        const select = document.getElementById('off-prof-select');
 
-    // Function to update professional info display
+        const options = list
+            .filter(p => p.is_template)
+            .map(p => `<option value="${p.id}" data-role="${escapeHtml(p.role)}" data-level="${escapeHtml(p.level)}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`)
+            .join('');
+        select.innerHTML = '<option value="">-- Selecionar Profissional --</option>' + options;
+    }
+
     function updateProfessionalInfo() {
         const sel = document.getElementById('off-prof-select');
         const opt = sel.options[sel.selectedIndex];
@@ -149,44 +157,30 @@ export async function renderOffers(container) {
         }
     }
 
-    // Show professional info when selected
     document.getElementById('off-prof-select').onchange = updateProfessionalInfo;
-
-    // Update info when allocation percentage changes
     document.getElementById('off-alloc').oninput = () => {
-        const sel = document.getElementById('off-prof-select');
-        if (sel.value) {
-            updateProfessionalInfo();
-        }
+        if (document.getElementById('off-prof-select').value) updateProfessionalInfo();
     };
 
-    // Add item to current list
     document.getElementById('btn-add-item').onclick = () => {
         const profId = document.getElementById('off-prof-select').value;
         const alloc = parseFloat(document.getElementById('off-alloc').value) || 100;
 
-        if (!profId) {
-            alert('Por favor, selecione um profissional');
-            return;
-        }
+        if (!profId) { alert('Por favor, selecione um profissional'); return; }
 
-        const professional = professionals.find(p => p.id == profId);
-        if (!professional) {
-            alert('Profissional não encontrado');
-            return;
-        }
+        const professional = professionalsMap.get(parseInt(profId));
+        if (!professional) { alert('Profissional não encontrado'); return; }
 
         currentItems.push({
             role: professional.role,
             level: professional.level,
             allocation_percentage: alloc,
-            professional_id: parseInt(profId),
+            professional_id: professional.id,
             professional_name: professional.name
         });
 
         renderItemsList();
 
-        // Reset form
         document.getElementById('off-prof-select').value = '';
         document.getElementById('off-alloc').value = '100';
         document.getElementById('prof-info').style.display = 'none';
@@ -196,57 +190,53 @@ export async function renderOffers(container) {
         const listDiv = document.getElementById('off-items-list');
         if (currentItems.length === 0) {
             listDiv.innerHTML = '<small style="color: #6b7280;">Nenhum item adicionado ainda</small>';
-        } else {
-            listDiv.innerHTML = currentItems.map((item, idx) => {
-                let label = '';
-                if (item.professional_id) {
-                    const p = professionals.find(p => p.id == item.professional_id);
-                    const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
-                    const pRole = p ? escapeHtml(p.role) : (item.role ? escapeHtml(item.role) : '?');
-                    const pLevel = p ? escapeHtml(p.level) : (item.level ? escapeHtml(item.level) : '?');
-                    label = `<strong>${pName}</strong> (${pRole} ${pLevel})`;
-                } else {
-                    label = `${escapeHtml(item.role || '?')} - ${escapeHtml(item.level || '?')}`;
-                }
-
-                const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
-                label += allocLabel;
-
-                return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 0.25rem; margin-bottom: 0.25rem;">
-                    <span>${label}</span>
-                    <button class="btn btn-sm btn-danger" data-remove-index="${idx}">Remover</button>
-                </div>
-            `}).join('');
-
-            // Add event listeners for remove buttons
-            listDiv.querySelectorAll('button[data-remove-index]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.removeIndex);
-                    window.removeOfferItem(idx);
-                });
-            });
+            return;
         }
+
+        listDiv.innerHTML = currentItems.map((item, idx) => {
+            let label = '';
+            if (item.professional_id) {
+                const p = professionalsMap.get(item.professional_id);
+                const pName = p ? escapeHtml(p.name) : (item.professional_name || 'Profissional Específico');
+                const pRole = p ? escapeHtml(p.role) : (item.role || '?');
+                const pLevel = p ? escapeHtml(p.level) : (item.level || '?');
+                label = `<strong>${pName}</strong> (${pRole} ${pLevel})`;
+            } else {
+                label = `${escapeHtml(item.role || '?')} - ${escapeHtml(item.level || '?')}`;
+            }
+
+            const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
+
+            return `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 0.25rem; margin-bottom: 0.25rem;">
+            <span>${label}${allocLabel}</span>
+            <button class="btn btn-sm btn-danger" data-remove-index="${idx}">Remover</button>
+        </div>
+      `;
+        }).join('');
+
+        listDiv.querySelectorAll('button[data-remove-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                handleRemoveOfferItem(parseInt(btn.dataset.removeIndex));
+            });
+        });
     }
 
-    window.removeOfferItem = (idx) => {
+    function handleRemoveOfferItem(idx) {
         currentItems.splice(idx, 1);
         renderItemsList();
-    };
+    }
 
-    // Save (Create or Update)
+    // --- API Interactions ---
+
     document.getElementById('btn-save-offer').onclick = async () => {
         const name = document.getElementById('off-name').value;
 
-        if (!name) {
-            alert('Por favor, insira um nome para a oferta');
-            return;
-        }
+        if (!name) { alert('Por favor, insira um nome para a oferta'); return; }
+        if (currentItems.length === 0) { alert('Por favor, adicione pelo menos um item à oferta'); return; }
 
-        if (currentItems.length === 0) {
-            alert('Por favor, adicione pelo menos um item à oferta');
-            return;
-        }
+        const btn = document.getElementById('btn-save-offer');
+        setLoading(btn, true, 'Salvando...');
 
         const itemsPayload = currentItems.map(i => ({
             allocation_percentage: i.allocation_percentage,
@@ -255,33 +245,34 @@ export async function renderOffers(container) {
 
         try {
             if (editingId) {
-                // Update offer name only
                 await api.put(`/offers/${editingId}`, { name });
+                const items = await api.get(`/offers/${editingId}/items`);
 
-                // Get current items from server
-                const existingItems = await api.get(`/offers/${editingId}/items`);
-
-                // Delete all existing items
-                for (const item of existingItems) {
-                    await api.delete(`/offers/${editingId}/items/${item.id}`);
-                }
-
-                // Add new items
-                for (const item of itemsPayload) {
-                    await api.post(`/offers/${editingId}/items`, item);
-                }
+                // Parallelize batch operations
+                await Promise.all([
+                    ...items.map(item => api.delete(`/offers/${editingId}/items/${item.id}`)),
+                    ...itemsPayload.map(item => api.post(`/offers/${editingId}/items`, item))
+                ]);
 
                 editingId = null;
             } else {
-                // Create new offer with items
                 await api.post('/offers/', { name, items: itemsPayload });
             }
 
-            modal.classList.remove('active');
-            clearForm();
-            loadOffers();
+            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Salvo!';
+            btn.classList.add('btn-success');
+
+            setTimeout(() => {
+                modal.classList.remove('active');
+                clearForm();
+                reloadOffers();
+                setLoading(btn, false);
+                btn.classList.remove('btn-success');
+            }, 1500);
+
         } catch (error) {
-            alert('Erro ao salvar oferta: ' + error.message);
+            alert('Erro ao salvar oferta:\n\n' + getApiErrorMessage(error));
+            setLoading(btn, false);
         }
     };
 
@@ -295,36 +286,34 @@ export async function renderOffers(container) {
     }
 
     function sortOffers(offers, sortBy, direction) {
-        const sorted = [...offers].sort((a, b) => {
+        return [...offers].sort((a, b) => {
             let aVal, bVal;
-
             if (sortBy === 'name') {
-                aVal = a.name.toLowerCase();
-                bVal = b.name.toLowerCase();
-                return direction === 'asc'
-                    ? aVal.localeCompare(bVal)
-                    : bVal.localeCompare(aVal);
+                aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase();
+                return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
             } else if (sortBy === 'items_count') {
-                aVal = a.items.length;
-                bVal = b.items.length;
+                aVal = a.items.length; bVal = b.items.length;
             } else if (sortBy === 'created_at') {
-                // If created_at exists, use it; otherwise fall back to id
                 aVal = a.created_at ? new Date(a.created_at) : a.id;
                 bVal = b.created_at ? new Date(b.created_at) : b.id;
             }
-
-            if (direction === 'asc') {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            } else {
-                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-            }
+            if (direction === 'asc') return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
         });
-
-        return sorted;
     }
 
-    async function loadOffers() {
-        const offers = await api.get('/offers/');
+    async function reloadOffers() {
+        const listDiv = document.getElementById('offers-list');
+        listDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280;">Atualizando...</div>';
+        try {
+            const offers = await api.get('/offers/');
+            await enrichAndRenderOffers(offers);
+        } catch (e) {
+            listDiv.innerHTML = '<p style="color:red">Erro ao atualizar ofertas.</p>';
+        }
+    }
+
+    async function enrichAndRenderOffers(offers) {
         const listDiv = document.getElementById('offers-list');
 
         if (offers.length === 0) {
@@ -332,73 +321,87 @@ export async function renderOffers(container) {
             return;
         }
 
-        // Sort offers
-        const sortedOffers = sortOffers(offers, currentSortBy, currentSortDirection);
+        // Promise.allSettled for robustness
+        const results = await Promise.allSettled(
+            offers.map(async (offer) => {
+                const items = await api.get(`/offers/${offer.id}/items`);
+                return { ...offer, items };
+            })
+        );
 
-        listDiv.innerHTML = sortedOffers.map(t => `
-            <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                    <div>
-                        <h4 style="margin: 0 0 0.5rem 0;">${escapeHtml(t.name)}</h4>
-                        <small style="color: #6b7280;">${t.items.length} item${t.items.length !== 1 ? 's' : ''}</small>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-sm" data-action="edit" data-offer-id="${t.id}">Editar</button>
-                        <button class="btn btn-sm btn-danger" data-action="delete" data-offer-id="${t.id}" data-offer-name="${escapeHtml(t.name)}">Excluir</button>
-                    </div>
-                </div>
-                <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
-                    ${t.items.map(item => {
-            let label = '';
-            if (item.professional_id) {
-                const p = professionals.find(p => p.id == item.professional_id);
-                const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
-                const pRole = p ? escapeHtml(p.role) : '?';
-                const pLevel = p ? escapeHtml(p.level) : '?';
-                label = `<strong>${pName}</strong> (${pRole} ${pLevel})`;
+        const offersWithItems = [];
+        results.forEach((res, index) => {
+            if (res.status === 'fulfilled') {
+                offersWithItems.push(res.value);
+            } else {
+                console.error(`Failed to fetch items for offer ${offers[index].id}`, res.reason);
+                offersWithItems.push({ ...offers[index], items: [], error: true });
             }
-            const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
-            label += allocLabel;
+        });
+
+        const sortedOffers = sortOffers(offersWithItems, currentSortBy, currentSortDirection);
+
+        listDiv.innerHTML = sortedOffers.map(t => {
+            const errorBadge = t.error ? '<small style="color:red; margin-left: 0.5rem;">(Erro ao carregar detalhes)</small>' : '';
             return `
-                        <div style="padding: 0.25rem 0; color: #374151;">
-                            • ${label}
-                        </div>
-                    `}).join('')}
+        <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                <div>
+                    <h4 style="margin: 0 0 0.5rem 0;">${escapeHtml(t.name)}${errorBadge}</h4>
+                    <small style="color: #6b7280;">${t.items.length} item${t.items.length !== 1 ? 's' : ''}</small>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-sm" data-action="edit" data-offer-id="${t.id}">Editar</button>
+                    <button class="btn btn-sm btn-danger" data-action="delete" data-offer-id="${t.id}" data-offer-name="${escapeHtml(t.name)}">Excluir</button>
                 </div>
             </div>
-        `).join('');
+            <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
+                ${t.items.map(item => {
+                let label = '';
+                if (item.professional_id) {
+                    const p = professionalsMap.get(item.professional_id);
+                    const pName = p ? escapeHtml(p.name) : 'Profissional Específico';
+                    label = `<strong>${pName}</strong> (${p ? escapeHtml(p.role) : '?'} ${p ? escapeHtml(p.level) : '?'})`;
+                }
+                const allocLabel = item.allocation_percentage ? ` - ${item.allocation_percentage}%` : '';
+                return `<div style="padding: 0.25rem 0; color: #374151;">• ${label}${allocLabel}</div>`;
+            }).join('')}
+            </div>
+        </div>
+      `;
+        }).join('');
 
-        // Add event delegation for offer action buttons
         listDiv.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
                 const offerId = parseInt(btn.dataset.offerId);
 
-                if (action === 'edit') {
-                    window.editOffer(offerId);
-                } else if (action === 'delete') {
-                    const offerName = btn.dataset.offerName;
-                    window.deleteOffer(offerId, offerName);
-                }
+                if (action === 'edit') handleEditOffer(offerId, btn);
+                else if (action === 'delete') handleDeleteOffer(offerId, btn.dataset.offerName, btn);
             });
         });
     }
 
-    // Edit offer
-    window.editOffer = async (id) => {
-        const offers = await api.get('/offers/');
-        const offer = offers.find(t => t.id === id);
+    // --- Scoped Internal Handlers ---
 
-        if (offer) {
+    async function handleEditOffer(id, btnElement) {
+        setLoading(btnElement, true, '');
+
+        try {
+            const [offer, items] = await Promise.all([
+                api.get(`/offers/${id}`),
+                api.get(`/offers/${id}/items`)
+            ]);
+
             editingId = id;
-            currentItems = offer.items.map(item => {
-                const p = professionals.find(p => p.id === item.professional_id);
+            currentItems = items.map(item => {
+                const p = professionalsMap.get(item.professional_id);
                 return {
                     role: p ? p.role : '?',
                     level: p ? p.level : '?',
                     allocation_percentage: item.allocation_percentage || 100,
                     professional_id: item.professional_id,
-                    professional_name: p ? p.name : '?'
+                    professional_name: p ? p.name : 'Profissional Específico'
                 };
             });
 
@@ -407,14 +410,51 @@ export async function renderOffers(container) {
             document.getElementById('off-name').value = offer.name;
             renderItemsList();
             modal.classList.add('active');
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao carregar oferta.');
+        } finally {
+            setLoading(btnElement, false);
         }
-    };
+    }
 
-    // Delete offer
-    window.deleteOffer = async (id, name) => {
+    async function handleDeleteOffer(id, name, btnElement) {
         if (confirm(`Tem certeza que deseja excluir a oferta "${name}"?`)) {
-            await api.delete(`/offers/${id}`);
-            loadOffers();
+            setLoading(btnElement, true, '');
+            try {
+                await api.delete(`/offers/${id}`);
+                reloadOffers();
+            } catch (error) {
+                alert(`Não foi possível excluir "${name}".\n\n${getApiErrorMessage(error)}`);
+                setLoading(btnElement, false);
+            }
         }
-    };
+    }
+
+    // --- Helper Functions ---
+
+    // Extracts a readable error message from API responses (FastAPI/Pydantic)
+    function getApiErrorMessage(error) {
+        if (error.detail) {
+            if (Array.isArray(error.detail)) {
+                return error.detail.map(e => e.msg).join('\n');
+            }
+            return error.detail;
+        }
+        if (error.error) return error.error;
+        return error.message || "Erro desconhecido.";
+    }
+
+    // Manages the visual loading state of buttons
+    function setLoading(btn, isLoading, loadingText = 'Carregando...', originalHtml = '') {
+        if (!btn) return;
+        if (isLoading) {
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="material-icons spin" style="font-size: 1.25rem; vertical-align: bottom; margin-right: 5px;">refresh</span> ${loadingText}`;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml || btn.dataset.originalHtml || btn.innerHTML;
+        }
+    }
 }
