@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from typing import List
@@ -56,7 +56,7 @@ def read_offer(offer_id: int, db: Session = Depends(get_db)):
     return offer
 
 
-@router.put("/offers/{offer_id}", response_model=schemas.Offer)
+@router.patch("/offers/{offer_id}", response_model=schemas.Offer)
 def update_offer(
     offer_id: int, offer: schemas.OfferUpdate, db: Session = Depends(get_db)
 ):
@@ -77,12 +77,19 @@ def update_offer(
 
 @router.get("/offers/{offer_id}/items", response_model=List[schemas.OfferItem])
 def get_offer_items(offer_id: int, db: Session = Depends(get_db)):
-    """Get all items from an offer"""
-    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
-    if not offer:
+    """List items of a specific offer"""
+    offer_exists = (
+        db.query(models.Offer).filter(models.Offer.id == offer_id).first() is not None
+    )
+    if not offer_exists:
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
 
-    return offer.items
+    items = (
+        db.query(models.OfferItem)
+        .filter(models.OfferItem.offer_id == offer_id)
+        .all()
+    )
+    return items
 
 
 @router.post("/offers/{offer_id}/items", response_model=schemas.OfferItem)
@@ -106,7 +113,7 @@ def add_item_to_offer(
     return db_item
 
 
-@router.put("/offers/{offer_id}/items/{item_id}", response_model=schemas.OfferItem)
+@router.patch("/offers/{offer_id}/items/{item_id}", response_model=schemas.OfferItem)
 def update_offer_item(
     offer_id: int,
     item_id: int,

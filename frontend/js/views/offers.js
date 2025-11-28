@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { normalizeText } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
@@ -9,6 +10,7 @@ export async function renderOffers(container) {
     let professionalsMap = new Map();
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
+    let offersCache = new Map();
 
     // Initial HTML Structure
     container.innerHTML = `
@@ -230,7 +232,7 @@ export async function renderOffers(container) {
     // --- API Interactions ---
 
     document.getElementById('btn-save-offer').onclick = async () => {
-        const name = document.getElementById('off-name').value;
+        const name = normalizeText(document.getElementById('off-name').value);
 
         if (!name) { alert('Por favor, insira um nome para a oferta'); return; }
         if (currentItems.length === 0) { alert('Por favor, adicione pelo menos um item à oferta'); return; }
@@ -245,7 +247,7 @@ export async function renderOffers(container) {
 
         try {
             if (editingId) {
-                await api.put(`/offers/${editingId}`, { name });
+                await api.patch(`/offers/${editingId}`, { name });
                 const items = await api.get(`/offers/${editingId}/items`);
 
                 // Parallelize batch operations
@@ -339,6 +341,8 @@ export async function renderOffers(container) {
             }
         });
 
+        offersCache = new Map(offersWithItems.map(o => [o.id, o]));
+
         const sortedOffers = sortOffers(offersWithItems, currentSortBy, currentSortDirection);
 
         listDiv.innerHTML = sortedOffers.map(t => {
@@ -407,7 +411,7 @@ export async function renderOffers(container) {
 
             document.getElementById('modal-offer-title').textContent = 'Editar Oferta';
             document.getElementById('btn-save-offer').textContent = 'Atualizar Oferta';
-            document.getElementById('off-name').value = offer.name;
+            document.getElementById('off-name').value = offer.name || (offersCache.get(id)?.name ?? '');
             renderItemsList();
             modal.classList.add('active');
         } catch (e) {

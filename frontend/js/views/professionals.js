@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { formatCurrency } from '../utils.js';
+import { formatCurrency, normalizeText } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
@@ -278,10 +278,10 @@ export async function renderProfessionals(container) {
     // --- CRUD Operations ---
 
     document.getElementById('btn-save-prof').onclick = async () => {
-        const pid = document.getElementById('prof-id').value;
-        const name = document.getElementById('prof-name').value;
-        const role = document.getElementById('prof-role').value;
-        const level = document.getElementById('prof-level').value;
+        const pid = normalizeText(document.getElementById('prof-id').value);
+        const name = normalizeText(document.getElementById('prof-name').value);
+        const role = normalizeText(document.getElementById('prof-role').value);
+        const level = normalizeText(document.getElementById('prof-level').value);
         const is_template = document.getElementById('prof-type').value === 'true';
         const hourly_cost = parseFloat(document.getElementById('prof-cost').value);
 
@@ -301,7 +301,7 @@ export async function renderProfessionals(container) {
 
             try {
                 if (editingId) {
-                    await api.put(`/professionals/${editingId}`, payload);
+                    await api.patch(`/professionals/${editingId}`, payload);
                     editingId = null;
                 } else {
                     await api.post('/professionals/', payload);

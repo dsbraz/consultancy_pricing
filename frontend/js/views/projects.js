@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { formatCurrency } from '../utils.js';
+import { normalizeText, formatCurrency } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
@@ -236,7 +236,7 @@ export async function renderProjects(container) {
     };
 
     document.getElementById('btn-save-project').onclick = async () => {
-        const name = document.getElementById('proj-name').value;
+        const name = normalizeText(document.getElementById('proj-name').value);
         const start_date = document.getElementById('proj-start').value;
         const duration_months = parseInt(document.getElementById('proj-duration').value);
         const tax_rate = parseFloat(document.getElementById('proj-tax').value);
@@ -252,12 +252,22 @@ export async function renderProjects(container) {
 
         try {
             if (editingProjectId) {
-                await api.put(`/projects/${editingProjectId}`, {
+                await api.patch(`/projects/${editingProjectId}`, {
                     id: parseInt(editingProjectId),
                     name, start_date, duration_months, tax_rate, margin_rate
                 });
 
                 if (currentProjectId === editingProjectId) {
+                    // Update local state to reflect changes immediately
+                    currentProjectData = {
+                        ...currentProjectData,
+                        name,
+                        start_date,
+                        duration_months,
+                        tax_rate,
+                        margin_rate
+                    };
+                    document.getElementById('proj-title-display').textContent = `Projeto: ${name}`;
                     loadAllocationTable(currentProjectId);
                 }
 

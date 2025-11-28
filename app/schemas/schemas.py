@@ -1,6 +1,18 @@
 from typing import List, Optional
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import date
+
+
+def _strip_non_empty_string(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    if not value.strip():
+        raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
+    return value.strip()
+
+
+class ORMModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProfessionalBase(BaseModel):
@@ -14,9 +26,7 @@ class ProfessionalBase(BaseModel):
     @field_validator("pid", "name", "role", "level")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip()
+        return _strip_non_empty_string(v)
 
 
 class ProfessionalCreate(ProfessionalBase):
@@ -34,16 +44,11 @@ class ProfessionalUpdate(BaseModel):
     @field_validator("pid", "name", "role", "level")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v or not v.strip()):
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip() if v else None
+        return _strip_non_empty_string(v)
 
 
-class Professional(ProfessionalBase):
+class Professional(ProfessionalBase, ORMModel):
     id: int
-
-    class Config:
-        from_attributes = True
 
 
 class OfferItemBase(BaseModel):
@@ -52,7 +57,7 @@ class OfferItemBase(BaseModel):
 
 
 class OfferItemCreate(OfferItemBase):
-    professional_id: int
+    pass
 
 
 class OfferItemUpdate(BaseModel):
@@ -60,12 +65,9 @@ class OfferItemUpdate(BaseModel):
     allocation_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
 
 
-class OfferItem(OfferItemBase):
+class OfferItem(OfferItemBase, ORMModel):
     id: int
     offer_id: int
-
-    class Config:
-        orm_mode = True
 
 
 class OfferBase(BaseModel):
@@ -74,13 +76,11 @@ class OfferBase(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip()
+        return _strip_non_empty_string(v)
 
 
 class OfferCreate(OfferBase):
-    items: List[OfferItemCreate] = []
+    items: List[OfferItemCreate] = Field(default_factory=list)
 
 
 class OfferUpdate(BaseModel):
@@ -90,65 +90,15 @@ class OfferUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v or not v.strip()):
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip() if v else None
+        return _strip_non_empty_string(v)
 
 
-class Offer(OfferBase):
+class Offer(OfferBase, ORMModel):
     id: int
-
-    class Config:
-        from_attributes = True
-
-
-class OfferWithItems(OfferBase):
-    id: int
-    items: List[OfferItem] = []
-
-    class Config:
-        from_attributes = True
 
 
 class ApplyOfferRequest(BaseModel):
     offer_id: int
-
-
-class WeeklyAllocationBase(BaseModel):
-    week_number: int
-    hours_allocated: float = Field(default=0.0, ge=0.0)
-    available_hours: float = Field(..., ge=0.0)
-
-
-class WeeklyAllocationCreate(WeeklyAllocationBase):
-    pass
-
-
-class WeeklyAllocation(WeeklyAllocationBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-
-class ProjectAllocationBase(BaseModel):
-    professional_id: int
-    cost_hourly_rate: float = Field(default=0.0, ge=0.0)
-    selling_hourly_rate: float = Field(default=0.0, ge=0.0)
-
-
-
-class ProjectAllocationCreate(ProjectAllocationBase):
-    weekly_allocations: List[WeeklyAllocationCreate] = []
-
-
-class ProjectAllocation(ProjectAllocationBase):
-    id: int
-    professional: Professional
-    weekly_allocations: List[WeeklyAllocation] = []
-
-    class Config:
-        from_attributes = True
 
 
 class ProjectBase(BaseModel):
@@ -161,14 +111,7 @@ class ProjectBase(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip()
-
-
-class ProjectCreate(ProjectBase):
-    allocations: List[ProjectAllocationCreate] = []
-    from_project_id: Optional[int] = None  # For cloning from existing project
+        return _strip_non_empty_string(v)
 
 
 class ProjectUpdate(BaseModel):
@@ -181,25 +124,52 @@ class ProjectUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v or not v.strip()):
-            raise ValueError("Campo não pode ser vazio ou conter apenas espaços")
-        return v.strip() if v else None
+        return _strip_non_empty_string(v)
 
 
-class Project(ProjectBase):
+class WeeklyAllocationBase(BaseModel):
+    week_number: int
+    hours_allocated: float = Field(default=0.0, ge=0.0)
+    available_hours: float = Field(..., ge=0.0)
+
+
+class WeeklyAllocationCreate(WeeklyAllocationBase):
+    pass
+
+
+class WeeklyAllocation(WeeklyAllocationBase, ORMModel):
     id: int
 
-    class Config:
-        from_attributes = True
+
+class ProjectAllocationBase(BaseModel):
+    professional_id: int
+    cost_hourly_rate: float = Field(default=0.0, ge=0.0)
+    selling_hourly_rate: float = Field(default=0.0, ge=0.0)
 
 
-class ProjectPricing(BaseModel):
+class ProjectAllocationCreate(ProjectAllocationBase):
+    weekly_allocations: List[WeeklyAllocationCreate] = Field(default_factory=list)
+
+
+class ProjectAllocation(ProjectAllocationBase, ORMModel):
+    id: int
+    professional: Professional
+    weekly_allocations: List[WeeklyAllocation] = Field(default_factory=list)
+
+
+class ProjectCreate(ProjectBase):
+    allocations: List[ProjectAllocationCreate] = Field(default_factory=list)
+    from_project_id: Optional[int] = None  # For cloning from existing project
+
+
+class Project(ProjectBase, ORMModel):
+    id: int
+
+
+class ProjectPricing(ORMModel):
     total_cost: float
     total_selling: float
     total_margin: float
     total_tax: float
     final_price: float
     final_margin_percent: float
-
-    class Config:
-        from_attributes = True

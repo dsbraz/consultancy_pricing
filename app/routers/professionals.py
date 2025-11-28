@@ -71,7 +71,7 @@ def get_professional(professional_id: int, db: Session = Depends(get_db)):
     return professional
 
 
-@router.put("/professionals/{professional_id:int}", response_model=schemas.Professional)
+@router.patch("/professionals/{professional_id}", response_model=schemas.Professional)
 def update_professional(
     professional_id: int,
     professional: schemas.ProfessionalUpdate,
@@ -99,7 +99,7 @@ def update_professional(
     return db_professional
 
 
-@router.delete("/professionals/{professional_id:int}")
+@router.delete("/professionals/{professional_id}")
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
     logger.info(f"Deleting professional: id={professional_id}")
     db_professional = (

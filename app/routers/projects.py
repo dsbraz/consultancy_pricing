@@ -166,7 +166,7 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
     return project
 
 
-@router.put("/projects/{project_id}", response_model=schemas.Project)
+@router.patch("/projects/{project_id}", response_model=schemas.Project)
 def update_project(
     project_id: int, project: schemas.ProjectUpdate, db: Session = Depends(get_db)
 ):
@@ -434,10 +434,13 @@ def get_project_timeline(project_id: int, db: Session = Depends(get_db)):
 )
 def get_project_allocations(project_id: int, db: Session = Depends(get_db)):
     """
-    Get all allocations for a project, including professional details and weekly breakdown.
+    List allocations for a project, including professional and weekly breakdown.
     """
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
+    project_exists = (
+        db.query(models.Project).filter(models.Project.id == project_id).first()
+        is not None
+    )
+    if not project_exists:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
     allocations = (
@@ -449,6 +452,7 @@ def get_project_allocations(project_id: int, db: Session = Depends(get_db)):
         .filter(models.ProjectAllocation.project_id == project_id)
         .all()
     )
+
     return allocations
 
 
