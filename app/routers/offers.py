@@ -161,7 +161,9 @@ def delete_offer(offer_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
 
     try:
-        db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).delete()
+        db.query(models.OfferItem).filter(
+            models.OfferItem.offer_id == offer_id
+        ).delete()
 
         db.delete(db_offer)
         db.commit()

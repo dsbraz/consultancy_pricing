@@ -92,8 +92,7 @@ def verify_full_flow():
     # 5. Apply Offer
     print("Applying Offer...")
     apply_resp = requests.post(
-        f"{BASE_URL}/projects/{project['id']}/offers",
-        json={"offer_id": offer['id']}
+        f"{BASE_URL}/projects/{project['id']}/offers", json={"offer_id": offer["id"]}
     )
     if apply_resp.status_code != 200:
         print(f"Failed to apply offer: {apply_resp.text}")
@@ -104,9 +103,7 @@ def verify_full_flow():
     # 6. Calculate Price
     print("Calculating Price...")
     try:
-        price_resp = requests.get(
-            f"{BASE_URL}/projects/{project['id']}/pricing"
-        )
+        price_resp = requests.get(f"{BASE_URL}/projects/{project['id']}/pricing")
         if price_resp.status_code != 200:
             print(f"Failed to calculate price: {price_resp.text}")
             sys.exit(1)

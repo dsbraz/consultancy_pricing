@@ -161,7 +161,7 @@ def verify_png_export():
     print("\n" + "=" * 60)
     print("✅ PNG EXPORT VERIFICATION COMPLETED SUCCESSFULLY!")
     print("=" * 60)
-    print(f"\nPlease manually review the generated PNG file:")
+    print("\nPlease manually review the generated PNG file:")
     print(f"  {output_filename}")
     print("\nVerify that it contains:")
     print("  - Project name")

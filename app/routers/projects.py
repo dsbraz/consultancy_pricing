@@ -21,13 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 # Helper functions to reduce code duplication
-def get_project_or_404(db: Session, project_id: int) -> models.Project:
-    """Get project by ID or raise 404"""
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        logger.warning(f"Project not found: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-    return project
 
 
 def get_project_with_allocations(db: Session, project_id: int) -> models.Project:
@@ -262,10 +255,26 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
     try:
-        db.query(models.ProjectAllocation).filter(
-            models.ProjectAllocation.project_id == project_id
-        ).delete()
+        # 1. Find all allocations for this project
+        allocations = (
+            db.query(models.ProjectAllocation)
+            .filter(models.ProjectAllocation.project_id == project_id)
+            .all()
+        )
+        allocation_ids = [a.id for a in allocations]
 
+        if allocation_ids:
+            # 2. Delete all weekly allocations associated with these allocations
+            db.query(models.WeeklyAllocation).filter(
+                models.WeeklyAllocation.allocation_id.in_(allocation_ids)
+            ).delete(synchronize_session=False)
+
+            # 3. Delete the allocations themselves
+            db.query(models.ProjectAllocation).filter(
+                models.ProjectAllocation.project_id == project_id
+            ).delete(synchronize_session=False)
+
+        # 4. Finally delete the project
         db.delete(db_project)
         db.commit()
     except IntegrityError:
