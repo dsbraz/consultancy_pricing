@@ -1,5 +1,5 @@
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import List, Optional, Annotated
+from pydantic import BaseModel, ConfigDict, Field, AfterValidator
 from datetime import date
 
 
@@ -11,22 +11,25 @@ def _strip_non_empty_string(value: Optional[str]) -> Optional[str]:
     return value.strip()
 
 
+NonEmptyStr = Annotated[
+    str, Field(min_length=1), AfterValidator(_strip_non_empty_string)
+]
+OptionalNonEmptyStr = Annotated[
+    Optional[str], Field(None, min_length=1), AfterValidator(_strip_non_empty_string)
+]
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
 class ProfessionalBase(BaseModel):
-    pid: str = Field(..., min_length=1)
-    name: str = Field(..., min_length=1)
-    role: str = Field(..., min_length=1)
-    level: str = Field(..., min_length=1)
+    pid: NonEmptyStr
+    name: NonEmptyStr
+    role: NonEmptyStr
+    level: NonEmptyStr
     is_template: bool = False
     hourly_cost: float = Field(default=0.0, ge=0.0)
-
-    @field_validator("pid", "name", "role", "level")
-    @classmethod
-    def validate_non_empty_string(cls, v: str) -> str:
-        return _strip_non_empty_string(v)
 
 
 class ProfessionalCreate(ProfessionalBase):
@@ -34,17 +37,12 @@ class ProfessionalCreate(ProfessionalBase):
 
 
 class ProfessionalUpdate(BaseModel):
-    pid: Optional[str] = Field(None, min_length=1)
-    name: Optional[str] = Field(None, min_length=1)
-    role: Optional[str] = Field(None, min_length=1)
-    level: Optional[str] = Field(None, min_length=1)
+    pid: OptionalNonEmptyStr = None
+    name: OptionalNonEmptyStr = None
+    role: OptionalNonEmptyStr = None
+    level: OptionalNonEmptyStr = None
     is_template: Optional[bool] = None
     hourly_cost: Optional[float] = Field(None, ge=0.0)
-
-    @field_validator("pid", "name", "role", "level")
-    @classmethod
-    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        return _strip_non_empty_string(v)
 
 
 class Professional(ProfessionalBase, ORMModel):
@@ -71,12 +69,7 @@ class OfferItem(OfferItemBase, ORMModel):
 
 
 class OfferBase(BaseModel):
-    name: str = Field(..., min_length=1)
-
-    @field_validator("name")
-    @classmethod
-    def validate_non_empty_string(cls, v: str) -> str:
-        return _strip_non_empty_string(v)
+    name: NonEmptyStr
 
 
 class OfferCreate(OfferBase):
@@ -84,13 +77,7 @@ class OfferCreate(OfferBase):
 
 
 class OfferUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1)
-    items: Optional[List[OfferItemCreate]] = None
-
-    @field_validator("name")
-    @classmethod
-    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        return _strip_non_empty_string(v)
+    name: OptionalNonEmptyStr = None
 
 
 class Offer(OfferBase, ORMModel):
@@ -102,29 +89,19 @@ class ApplyOfferRequest(BaseModel):
 
 
 class ProjectBase(BaseModel):
-    name: str = Field(..., min_length=1)
+    name: NonEmptyStr
     start_date: date
     duration_months: int = Field(..., ge=1)
     tax_rate: float = Field(..., ge=0.0, le=100.0)
     margin_rate: float = Field(..., ge=0.0, le=100.0)
 
-    @field_validator("name")
-    @classmethod
-    def validate_non_empty_string(cls, v: str) -> str:
-        return _strip_non_empty_string(v)
-
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1)
+    name: OptionalNonEmptyStr = None
     start_date: Optional[date] = None
     duration_months: Optional[int] = Field(None, ge=1)
     tax_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
     margin_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
-
-    @field_validator("name")
-    @classmethod
-    def validate_non_empty_string(cls, v: Optional[str]) -> Optional[str]:
-        return _strip_non_empty_string(v)
 
 
 class WeeklyAllocationBase(BaseModel):

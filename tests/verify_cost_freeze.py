@@ -37,7 +37,9 @@ def verify_cost_freeze():
 
     professional = resp.json()
     prof_id = professional["id"]
-    print(f"Professional created with ID: {prof_id}, Cost: {professional['hourly_cost']}")
+    print(
+        f"Professional created with ID: {prof_id}, Cost: {professional['hourly_cost']}"
+    )
 
     # Step 2: Create Project P
     print("Creating Project P...")
@@ -68,8 +70,8 @@ def verify_cost_freeze():
             print(f"Failed to add professional to project P: {resp.text}")
             sys.exit(1)
 
-        allocation_p = resp.json()
-        print(f"Professional allocated to Project P")
+        _ = resp.json()
+        print("Professional allocated to Project P")
 
         # Get allocation details to verify cost_hourly_rate
         resp = requests.get(f"{BASE_URL}/projects/{project_p_id}/allocations")
@@ -93,9 +95,13 @@ def verify_cost_freeze():
         # Set some hours for calculation
         print("Setting hours for Project P allocation...")
         weekly_alloc_id = allocation_p_data["weekly_allocations"][0]["id"]
-        update_data = [{"weekly_allocation_id": weekly_alloc_id, "hours_allocated": 40.0}]
+        update_data = [
+            {"weekly_allocation_id": weekly_alloc_id, "hours_allocated": 40.0}
+        ]
 
-        resp = requests.put(f"{BASE_URL}/projects/{project_p_id}/allocations", json=update_data)
+        resp = requests.put(
+            f"{BASE_URL}/projects/{project_p_id}/allocations", json=update_data
+        )
         if resp.status_code != 200:
             print(f"Failed to update hours: {resp.text}")
             sys.exit(1)
@@ -123,7 +129,9 @@ def verify_cost_freeze():
         print("Updating professional hourly_cost to 200.0...")
         update_prof_data = {"hourly_cost": 200.0}
 
-        resp = requests.put(f"{BASE_URL}/professionals/{prof_id}", json=update_prof_data)
+        resp = requests.put(
+            f"{BASE_URL}/professionals/{prof_id}", json=update_prof_data
+        )
         if resp.status_code != 200:
             print(f"Failed to update professional: {resp.text}")
             sys.exit(1)
@@ -141,11 +149,17 @@ def verify_cost_freeze():
         pricing_p_after = resp.json()
         actual_cost_after = pricing_p_after["total_cost"]
 
-        print(f"Total Cost: {actual_cost_after}, Expected: {expected_cost_before} (unchanged)")
+        print(
+            f"Total Cost: {actual_cost_after}, Expected: {expected_cost_before} (unchanged)"
+        )
 
         if abs(actual_cost_after - expected_cost_before) > 0.01:
-            print(f"Mismatch! Cost changed: {actual_cost_after} != {expected_cost_before}")
-            print("COST FREEZE FAILED - Project P cost changed when professional cost changed!")
+            print(
+                f"Mismatch! Cost changed: {actual_cost_after} != {expected_cost_before}"
+            )
+            print(
+                "COST FREEZE FAILED - Project P cost changed when professional cost changed!"
+            )
             sys.exit(1)
         print("Project P STILL uses Cost A (100.0) - COST FREEZE WORKING!")
 
@@ -191,14 +205,20 @@ def verify_cost_freeze():
         print(f"Frozen cost in Project Q allocation: {frozen_cost_q}")
 
         if frozen_cost_q != 200.0:
-            print(f"Mismatch! Expected frozen cost to be 200.0 (new cost), got {frozen_cost_q}")
+            print(
+                f"Mismatch! Expected frozen cost to be 200.0 (new cost), got {frozen_cost_q}"
+            )
             sys.exit(1)
 
         # Set hours for Project Q
         weekly_alloc_q_id = allocation_q_data["weekly_allocations"][0]["id"]
-        update_data_q = [{"weekly_allocation_id": weekly_alloc_q_id, "hours_allocated": 40.0}]
+        update_data_q = [
+            {"weekly_allocation_id": weekly_alloc_q_id, "hours_allocated": 40.0}
+        ]
 
-        resp = requests.put(f"{BASE_URL}/projects/{project_q_id}/allocations", json=update_data_q)
+        resp = requests.put(
+            f"{BASE_URL}/projects/{project_q_id}/allocations", json=update_data_q
+        )
         if resp.status_code != 200:
             print(f"Failed to update hours: {resp.text}")
             sys.exit(1)
