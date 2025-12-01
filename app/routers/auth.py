@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Request, Depends
+from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from fastapi_sso.sso.microsoft import MicrosoftSSO
 import os
@@ -18,7 +18,9 @@ REDIRECT_URI = f"{BASE_URL}/auth/callback"
 
 # Determine whether insecure HTTP should be allowed (for local development only)
 ALLOW_INSECURE_HTTP_ENV = os.environ.get("ALLOW_INSECURE_HTTP", "").lower() == "true"
-IS_LOCAL_BASE_URL = BASE_URL.startswith("http://localhost") or BASE_URL.startswith("http://127.0.0.1")
+IS_LOCAL_BASE_URL = BASE_URL.startswith("http://localhost") or BASE_URL.startswith(
+    "http://127.0.0.1"
+)
 ALLOW_INSECURE_HTTP = ALLOW_INSECURE_HTTP_ENV or IS_LOCAL_BASE_URL
 
 logger.info(
@@ -31,7 +33,9 @@ logger.info(
 # Initialize SSO only if credentials are present (to avoid startup errors if not configured yet)
 MS_CONFIG_VALID = bool(MS_CLIENT_ID and MS_CLIENT_SECRET and MS_TENANT_ID)
 if not MS_CONFIG_VALID:
-    logger.error("CRITICAL: Microsoft SSO credentials not found in environment variables!")
+    logger.error(
+        "CRITICAL: Microsoft SSO credentials not found in environment variables!"
+    )
     logger.error(f"MS_CLIENT_ID: {'SET' if MS_CLIENT_ID else 'MISSING'}")
     logger.error(f"MS_CLIENT_SECRET: {'SET' if MS_CLIENT_SECRET else 'MISSING'}")
     logger.error(f"MS_TENANT_ID: {'SET' if MS_TENANT_ID else 'MISSING'}")
