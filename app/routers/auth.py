@@ -13,37 +13,59 @@ MS_CLIENT_SECRET = os.environ.get("MS_CLIENT_SECRET", "")
 MS_TENANT_ID = os.environ.get("MS_TENANT_ID", "")
 
 # Base URL for redirect construction
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
 REDIRECT_URI = f"{BASE_URL}/auth/callback"
 
+# Determine whether insecure HTTP should be allowed (for local development only)
+ALLOW_INSECURE_HTTP_ENV = os.environ.get("ALLOW_INSECURE_HTTP", "").lower() == "true"
+IS_LOCAL_BASE_URL = BASE_URL.startswith("http://localhost") or BASE_URL.startswith("http://127.0.0.1")
+ALLOW_INSECURE_HTTP = ALLOW_INSECURE_HTTP_ENV or IS_LOCAL_BASE_URL
+
+logger.info(
+    "Microsoft SSO allow_insecure_http=%s (BASE_URL=%s, env_override=%s)",
+    ALLOW_INSECURE_HTTP,
+    BASE_URL,
+    ALLOW_INSECURE_HTTP_ENV,
+)
+
 # Initialize SSO only if credentials are present (to avoid startup errors if not configured yet)
-if not MS_CLIENT_ID or not MS_CLIENT_SECRET or not MS_TENANT_ID:
+MS_CONFIG_VALID = bool(MS_CLIENT_ID and MS_CLIENT_SECRET and MS_TENANT_ID)
+if not MS_CONFIG_VALID:
     logger.error("CRITICAL: Microsoft SSO credentials not found in environment variables!")
     logger.error(f"MS_CLIENT_ID: {'SET' if MS_CLIENT_ID else 'MISSING'}")
     logger.error(f"MS_CLIENT_SECRET: {'SET' if MS_CLIENT_SECRET else 'MISSING'}")
     logger.error(f"MS_TENANT_ID: {'SET' if MS_TENANT_ID else 'MISSING'}")
-    # We don't raise exception here to allow app to start, but auth will fail
+    sso = None
 else:
     logger.info("Microsoft SSO credentials loaded successfully.")
-
-sso = MicrosoftSSO(
-    client_id=MS_CLIENT_ID,
-    client_secret=MS_CLIENT_SECRET,
-    tenant=MS_TENANT_ID,
-    redirect_uri=REDIRECT_URI,
-    allow_insecure_http=True,  # Allow HTTP for local development
-)
+    sso = MicrosoftSSO(
+        client_id=MS_CLIENT_ID,
+        client_secret=MS_CLIENT_SECRET,
+        tenant=MS_TENANT_ID,
+        redirect_uri=REDIRECT_URI,
+        allow_insecure_http=ALLOW_INSECURE_HTTP,
+    )
 
 
 @router.get("/auth/login")
 async def auth_login():
     """Redirects the user to the Microsoft login page."""
+    if not MS_CONFIG_VALID or not sso:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication not configured",
+        )
     return await sso.get_login_redirect()
 
 
 @router.get("/auth/callback")
 async def auth_callback(request: Request):
     """Processes the login callback from Microsoft."""
+    if not MS_CONFIG_VALID or not sso:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication not configured",
+        )
     try:
         user = await sso.verify_and_process(request)
 

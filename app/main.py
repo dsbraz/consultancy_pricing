@@ -48,8 +48,30 @@ app.add_middleware(
 )
 
 # Session Middleware for Auth
-SECRET_KEY = os.environ.get("SECRET_KEY", "default-insecure-secret-key")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+DEFAULT_SECRET_KEY = "default-insecure-secret-key"
+SECRET_KEY = os.environ.get("SECRET_KEY", DEFAULT_SECRET_KEY)
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
+SESSION_COOKIE_HTTPS_ONLY = BASE_URL.startswith("https://")
+
+if not SECRET_KEY or SECRET_KEY == DEFAULT_SECRET_KEY:
+    error_message = (
+        "SECRET_KEY environment variable must be set to a secure, non-default value"
+    )
+    logger.error(error_message)
+    raise RuntimeError(error_message)
+
+logger.info(
+    "Session middleware configured (https_only=%s, same_site=lax, BASE_URL=%s)",
+    SESSION_COOKIE_HTTPS_ONLY,
+    BASE_URL,
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    https_only=SESSION_COOKIE_HTTPS_ONLY,
+    same_site="lax",
+)
 
 app.include_router(auth.router, tags=["Authentication"])
 app.include_router(
