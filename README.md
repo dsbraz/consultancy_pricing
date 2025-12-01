@@ -8,6 +8,7 @@ Sistema web para gerenciamento e precificação de projetos de consultoria, com 
 - 📋 **Ofertas de Equipe**: Templates pré-configurados de equipes
 - 📊 **Projetos**: Alocação semanal automática considerando feriados brasileiros
 - 💰 **Cálculos Financeiros**: Custos, impostos, margem e preço de venda automáticos
+- 🔐 **Autenticação SSO**: Login corporativo com Microsoft (Azure AD)
 
 ## 🛠️ Stack Tecnológica
 
@@ -73,6 +74,7 @@ frontend/            # HTML + CSS + JavaScript
 - ✅ Validação Pydantic no backend
 - ✅ CORS configurável
 - ✅ SSL/TLS em produção
+- ✅ Proteção de rotas via Middleware de Sessão
 
 ## 📝 Configuração
 

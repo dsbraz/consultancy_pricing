@@ -77,7 +77,19 @@ Baixe o instalador em [cloud.google.com/sdk/docs/install](https://cloud.google.c
    - **Password**: sua senha
    - **Database**: `postgres`
 
-### Passo 2: Configurar Google Cloud
+### Passo 2: Configurar Autenticação (Microsoft SSO)
+
+1. Acesse o **Azure Portal** > **App Registrations**
+2. Registre uma nova aplicação
+3. Configure a **Redirect URI** (Web):
+   - `https://sua-aplicacao-cloud-run.run.app/auth/callback`
+4. Crie um **Client Secret** em "Certificates & secrets"
+5. Anote:
+   - Application (client) ID
+   - Directory (tenant) ID
+   - Client Secret Value
+
+### Passo 3: Configurar Google Cloud
 
 #### 2.1. Fazer login no Google Cloud
 
@@ -148,11 +160,18 @@ CORS_ORIGINS=*
 
 # Ambiente
 ENVIRONMENT=production
+
+# Autenticação Microsoft SSO
+MS_CLIENT_ID=seu-client-id
+MS_CLIENT_SECRET=seu-client-secret
+MS_TENANT_ID=seu-tenant-id
+SECRET_KEY=sua-chave-secreta-para-sessao
+BASE_URL=https://sua-aplicacao-cloud-run.run.app
 ```
 
 > **⚠️ Importante:** Não commite este arquivo! Ele é apenas para referência local.
 
-### Passo 4: Deploy da Aplicação
+### Passo 5: Deploy da Aplicação
 
 #### 4.1. Deploy com um único comando
 
@@ -181,6 +200,11 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "DB_USER=postgres" \
   --set-env-vars "DB_PASS=sua_senha_aqui" \
   --set-env-vars "DB_NAME=postgres" \
+  --set-env-vars "MS_CLIENT_ID=seu-id" \
+  --set-env-vars "MS_CLIENT_SECRET=seu-secret" \
+  --set-env-vars "MS_TENANT_ID=seu-tenant" \
+  --set-env-vars "SECRET_KEY=sua-key" \
+  --set-env-vars "BASE_URL=https://sua-app.run.app" \
   --set-env-vars "CORS_ORIGINS=*" \
   --port 8080 \
   --max-instances 10 \
