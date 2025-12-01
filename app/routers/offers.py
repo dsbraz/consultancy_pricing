@@ -22,6 +22,19 @@ def _get_offer_or_404(db: Session, offer_id: int) -> models.Offer:
     return offer
 
 
+def _get_professional_or_404(db: Session, professional_id: int) -> models.Professional:
+    """Fetch professional or raise 404."""
+    professional = (
+        db.query(models.Professional)
+        .filter(models.Professional.id == professional_id)
+        .first()
+    )
+    if not professional:
+        logger.warning(f"Professional not found: id={professional_id}")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    return professional
+
+
 def _get_offer_item_or_404(
     db: Session, offer_id: int, item_id: int
 ) -> models.OfferItem:
@@ -47,6 +60,9 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
         db.flush()  # Flush to get ID
 
         for item in offer.items:
+            # Ensure referenced professional exists
+            _get_professional_or_404(db, item.professional_id)
+
             db_item = models.OfferItem(
                 offer_id=db_offer.id,
                 allocation_percentage=item.allocation_percentage,
@@ -121,6 +137,9 @@ def add_item_to_offer(
     """Add a new item to an offer"""
     _get_offer_or_404(db, offer_id)
 
+    # Ensure referenced professional exists
+    _get_professional_or_404(db, item.professional_id)
+
     db_item = models.OfferItem(
         offer_id=offer_id,
         allocation_percentage=item.allocation_percentage,
@@ -144,6 +163,7 @@ def update_offer_item(
     db_item = _get_offer_item_or_404(db, offer_id, item_id)
 
     if item.professional_id is not None:
+        _get_professional_or_404(db, item.professional_id)
         db_item.professional_id = item.professional_id
     if item.allocation_percentage is not None:
         db_item.allocation_percentage = item.allocation_percentage

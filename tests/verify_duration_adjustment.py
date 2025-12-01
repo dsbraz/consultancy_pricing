@@ -52,7 +52,9 @@ def verify_duration_adjustment():
     print(f"✓ Created project with ID: {project_id}, duration: 3 months")
 
     # 4. Apply offer
-    resp = requests.post(f"{BASE_URL}/projects/{project_id}/offers", json={"offer_id": offer_id})
+    resp = requests.post(
+        f"{BASE_URL}/projects/{project_id}/offers", json={"offer_id": offer_id}
+    )
     assert resp.status_code == 200
     print("✓ Applied offer")
 

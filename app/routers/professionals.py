@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from typing import List
+from typing import List, Optional
 import csv
 import io
 import logging
@@ -28,6 +28,18 @@ def _get_professional_or_404(db: Session, professional_id: int) -> models.Profes
     return professional
 
 
+def _assert_unique_pid(db: Session, pid: str, exclude_id: Optional[int] = None) -> None:
+    """Ensure PID is unique, excluding optional professional ID."""
+    existing = (
+        db.query(models.Professional).filter(models.Professional.pid == pid).first()
+    )
+    if existing and existing.id != exclude_id:
+        logger.warning(f"Duplicate PID detected: pid={pid}, existing_id={existing.id}")
+        raise HTTPException(
+            status_code=400, detail=f"Já existe um profissional com o PID '{pid}'."
+        )
+
+
 @router.post("/professionals/", response_model=schemas.Professional)
 def create_professional(
     professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)
@@ -36,6 +48,7 @@ def create_professional(
     logger.info(
         f"Creating professional: pid={professional.pid}, name={professional.name}"
     )
+    _assert_unique_pid(db, professional.pid)
     db_professional = models.Professional(
         pid=professional.pid,
         name=professional.name,
@@ -87,6 +100,9 @@ def update_professional(
     db_professional = _get_professional_or_404(db, professional_id)
 
     update_data = professional.model_dump(exclude_unset=True)
+    if "pid" in update_data:
+        _assert_unique_pid(db, update_data["pid"], exclude_id=professional_id)
+
     for key, value in update_data.items():
         setattr(db_professional, key, value)
 

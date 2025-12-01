@@ -56,7 +56,9 @@ def verify_allocation_percentage():
     print(f"Created project with ID: {project_id}")
 
     # 4. Apply offer
-    resp = requests.post(f"{BASE_URL}/projects/{project_id}/offers", json={"offer_id": offer_id})
+    resp = requests.post(
+        f"{BASE_URL}/projects/{project_id}/offers", json={"offer_id": offer_id}
+    )
     if resp.status_code != 200:
         print(f"Apply offer failed: {resp.status_code} - {resp.text}")
     assert resp.status_code == 200
@@ -96,5 +98,6 @@ if __name__ == "__main__":
         verify_allocation_percentage()
     except Exception:
         import traceback
+
         traceback.print_exc()
         exit(1)

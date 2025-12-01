@@ -1,5 +1,5 @@
 from typing import List, Optional, Annotated
-from pydantic import BaseModel, ConfigDict, Field, AfterValidator
+from pydantic import BaseModel, ConfigDict, Field, AfterValidator, model_validator
 from datetime import date
 
 
@@ -150,3 +150,29 @@ class ProjectPricing(ORMModel):
     total_tax: float
     final_price: float
     final_margin_percent: float
+
+
+class AllocationUpdateItem(BaseModel):
+    allocation_id: Optional[int] = None
+    weekly_allocation_id: Optional[int] = None
+    selling_hourly_rate: Optional[float] = Field(None, ge=0.0)
+    hours_allocated: Optional[float] = Field(None, ge=0.0)
+
+    @model_validator(mode="after")
+    def validate_payload(self):
+        has_allocation_update = (
+            self.allocation_id is not None and self.selling_hourly_rate is not None
+        )
+        has_weekly_update = (
+            self.weekly_allocation_id is not None and self.hours_allocated is not None
+        )
+
+        if has_allocation_update and has_weekly_update:
+            return self
+
+        if has_allocation_update or has_weekly_update:
+            return self
+
+        raise ValueError(
+            "Informe allocation_id + selling_hourly_rate ou weekly_allocation_id + hours_allocated"
+        )
