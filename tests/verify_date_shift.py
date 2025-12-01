@@ -86,7 +86,7 @@ def verify_date_shift():
     # 4. Apply offer to create allocations
     print("\n4. Aplicando oferta ao projeto...")
     result = make_request(
-        "POST", f"/projects/{proj_id}/apply_offer/{offer_id}", data={}
+        "POST", f"/projects/{proj_id}/offers", data={"offer_id": offer_id}
     )
     print(f"   ✓ Oferta aplicada: {result['weeks_count']} semanas criadas")
 

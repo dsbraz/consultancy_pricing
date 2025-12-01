@@ -13,6 +13,30 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _get_offer_or_404(db: Session, offer_id: int) -> models.Offer:
+    """Fetch offer or raise 404."""
+    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
+    if not offer:
+        logger.warning(f"Offer not found: id={offer_id}")
+        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+    return offer
+
+
+def _get_offer_item_or_404(
+    db: Session, offer_id: int, item_id: int
+) -> models.OfferItem:
+    """Fetch offer item scoped to offer or raise 404."""
+    item = (
+        db.query(models.OfferItem)
+        .filter(models.OfferItem.id == item_id, models.OfferItem.offer_id == offer_id)
+        .first()
+    )
+    if not item:
+        logger.warning(f"Offer item not found: offer_id={offer_id}, item_id={item_id}")
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    return item
+
+
 @router.post("/offers/", response_model=schemas.Offer)
 def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
     """Create a new offer template"""
@@ -59,10 +83,7 @@ def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 @router.get("/offers/{offer_id}", response_model=schemas.Offer)
 def read_offer(offer_id: int, db: Session = Depends(get_db)):
     """Get a single offer template by ID"""
-    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
-    if not offer:
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
-    return offer
+    return _get_offer_or_404(db, offer_id)
 
 
 @router.patch("/offers/{offer_id}", response_model=schemas.Offer)
@@ -71,10 +92,7 @@ def update_offer(
 ):
     """Update an offer template's details"""
     logger.info(f"Updating offer: id={offer_id}")
-    db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
-    if not db_offer:
-        logger.warning(f"Offer not found for update: id={offer_id}")
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+    db_offer = _get_offer_or_404(db, offer_id)
 
     if offer.name is not None:
         db_offer.name = offer.name
@@ -88,11 +106,7 @@ def update_offer(
 @router.get("/offers/{offer_id}/items", response_model=List[schemas.OfferItem])
 def get_offer_items(offer_id: int, db: Session = Depends(get_db)):
     """List items of a specific offer"""
-    offer_exists = (
-        db.query(models.Offer).filter(models.Offer.id == offer_id).first() is not None
-    )
-    if not offer_exists:
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+    _get_offer_or_404(db, offer_id)
 
     items = (
         db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).all()
@@ -105,9 +119,7 @@ def add_item_to_offer(
     offer_id: int, item: schemas.OfferItemCreate, db: Session = Depends(get_db)
 ):
     """Add a new item to an offer"""
-    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
-    if not offer:
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+    _get_offer_or_404(db, offer_id)
 
     db_item = models.OfferItem(
         offer_id=offer_id,
@@ -129,14 +141,7 @@ def update_offer_item(
     db: Session = Depends(get_db),
 ):
     """Update a specific item in an offer"""
-    db_item = (
-        db.query(models.OfferItem)
-        .filter(models.OfferItem.id == item_id, models.OfferItem.offer_id == offer_id)
-        .first()
-    )
-
-    if not db_item:
-        raise HTTPException(status_code=404, detail="Item não encontrado")
+    db_item = _get_offer_item_or_404(db, offer_id, item_id)
 
     if item.professional_id is not None:
         db_item.professional_id = item.professional_id
@@ -152,15 +157,7 @@ def update_offer_item(
 @router.delete("/offers/{offer_id}/items/{item_id}")
 def delete_offer_item(offer_id: int, item_id: int, db: Session = Depends(get_db)):
     """Remove a specific item from an offer"""
-    db_item = (
-        db.query(models.OfferItem)
-        .filter(models.OfferItem.id == item_id, models.OfferItem.offer_id == offer_id)
-        .first()
-    )
-
-    if not db_item:
-        raise HTTPException(status_code=404, detail="Item não encontrado")
-
+    db_item = _get_offer_item_or_404(db, offer_id, item_id)
     db.delete(db_item)
     db.commit()
     logger.info(f"Item deleted: offer_id={offer_id}, item_id={item_id}")
@@ -171,10 +168,7 @@ def delete_offer_item(offer_id: int, item_id: int, db: Session = Depends(get_db)
 def delete_offer(offer_id: int, db: Session = Depends(get_db)):
     """Delete an offer template"""
     logger.info(f"Deleting offer: id={offer_id}")
-    db_offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
-    if not db_offer:
-        logger.warning(f"Offer not found for deletion: id={offer_id}")
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+    db_offer = _get_offer_or_404(db, offer_id)
 
     try:
         db.query(models.OfferItem).filter(

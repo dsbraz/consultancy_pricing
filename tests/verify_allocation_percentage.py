@@ -1,7 +1,7 @@
 import requests
 import datetime
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 
 def verify_allocation_percentage():
@@ -13,9 +13,11 @@ def verify_allocation_percentage():
         "role": "Developer",
         "level": "Senior",
         "hourly_cost": 100.0,
-        "professional_id": f"PROF{timestamp}",
+        "pid": f"PROF{timestamp}",
     }
     resp = requests.post(f"{BASE_URL}/professionals/", json=prof_data)
+    if resp.status_code != 200:
+        print(f"Create professional failed: {resp.status_code} - {resp.text}")
     assert resp.status_code == 200
     prof_id = resp.json()["id"]
     print(f"Created professional with ID: {prof_id}")
@@ -54,7 +56,9 @@ def verify_allocation_percentage():
     print(f"Created project with ID: {project_id}")
 
     # 4. Apply offer
-    resp = requests.post(f"{BASE_URL}/projects/{project_id}/apply_offer/{offer_id}")
+    resp = requests.post(f"{BASE_URL}/projects/{project_id}/offers", json={"offer_id": offer_id})
+    if resp.status_code != 200:
+        print(f"Apply offer failed: {resp.status_code} - {resp.text}")
     assert resp.status_code == 200
     print("Applied offer")
 
@@ -90,6 +94,7 @@ def verify_allocation_percentage():
 if __name__ == "__main__":
     try:
         verify_allocation_percentage()
-    except Exception as e:
-        print(f"Verification failed: {e}")
+    except Exception:
+        import traceback
+        traceback.print_exc()
         exit(1)

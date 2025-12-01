@@ -21,6 +21,26 @@ logger = logging.getLogger(__name__)
 
 
 # Helper functions to reduce code duplication
+def _get_project_or_404(db: Session, project_id: int) -> models.Project:
+    """Fetch project or raise 404."""
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        logger.warning(f"Project not found: id={project_id}")
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    return project
+
+
+def _get_professional_or_404(db: Session, professional_id: int) -> models.Professional:
+    """Fetch professional or raise 404."""
+    professional = (
+        db.query(models.Professional)
+        .filter(models.Professional.id == professional_id)
+        .first()
+    )
+    if not professional:
+        logger.warning(f"Professional not found: id={professional_id}")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    return professional
 
 
 def _calculate_selling_rate(
@@ -60,6 +80,14 @@ def _create_weekly_allocations(
             available_hours=week["available_hours"],
         )
         db.add(weekly_alloc)
+
+
+def _get_project_weeks(project: models.Project) -> List[dict]:
+    """Return weekly breakdown for project dates."""
+    calendar_service = CalendarService(country_code="BR")
+    return calendar_service.get_weekly_breakdown(
+        project.start_date, project.duration_months
+    )
 
 
 def get_project_with_allocations(db: Session, project_id: int) -> models.Project:
@@ -115,20 +143,10 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
         db.flush()  # Flush to get ID, but don't commit yet
 
         # Generate weeks structure
-        calendar_service = CalendarService(country_code="BR")
-        weeks = calendar_service.get_weekly_breakdown(
-            db_project.start_date, db_project.duration_months
-        )
+        weeks = _get_project_weeks(db_project)
 
         for allocation in project.allocations:
-            # Fetch professional to get hourly cost
-            prof = (
-                db.query(models.Professional)
-                .filter(models.Professional.id == allocation.professional_id)
-                .first()
-            )
-            if not prof:
-                raise ValueError(f"Professional {allocation.professional_id} not found")
+            prof = _get_professional_or_404(db, allocation.professional_id)
 
             selling_rate = _calculate_selling_rate(
                 db_project, prof, allocation.selling_hourly_rate
@@ -154,6 +172,9 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
             f"Project created successfully: id={db_project.id}, name={db_project.name}"
         )
         return db_project
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating project: {str(e)}")
@@ -232,10 +253,7 @@ def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 @router.get("/projects/{project_id}", response_model=schemas.Project)
 def read_project(project_id: int, db: Session = Depends(get_db)):
     """Get a single project by ID"""
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-    return project
+    return _get_project_or_404(db, project_id)
 
 
 @router.patch("/projects/{project_id}", response_model=schemas.Project)
@@ -245,12 +263,7 @@ def update_project(
     """Update a project's details"""
     logger.info(f"Updating project: id={project_id}")
 
-    db_project = (
-        db.query(models.Project).filter(models.Project.id == project_id).first()
-    )
-    if not db_project:
-        logger.warning(f"Project not found for update: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    db_project = _get_project_or_404(db, project_id)
 
     duration_changed = (
         project.duration_months is not None
@@ -266,10 +279,7 @@ def update_project(
             setattr(db_project, key, value)
 
         if duration_changed or start_date_changed:
-            calendar_service = CalendarService(country_code="BR")
-            new_weeks = calendar_service.get_weekly_breakdown(
-                db_project.start_date, db_project.duration_months
-            )
+            new_weeks = _get_project_weeks(db_project)
 
             new_weeks_map = {w["week_number"]: w for w in new_weeks}
 
@@ -324,12 +334,7 @@ def update_project(
 def delete_project(project_id: int, db: Session = Depends(get_db)):
     """Delete a project and its allocations"""
     logger.info(f"Deleting project: id={project_id}")
-    db_project = (
-        db.query(models.Project).filter(models.Project.id == project_id).first()
-    )
-    if not db_project:
-        logger.warning(f"Project not found for deletion: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    db_project = _get_project_or_404(db, project_id)
 
     try:
         # 1. Find all allocations for this project
@@ -377,7 +382,7 @@ def apply_offer_to_project(
         f"Applying offer to project: project_id={project_id}, offer_id={request.offer_id}"
     )
 
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    project = _get_project_or_404(db, project_id)
     offer = (
         db.query(models.Offer)
         .options(joinedload(models.Offer.items))
@@ -391,10 +396,7 @@ def apply_offer_to_project(
         )
         raise HTTPException(status_code=404, detail="Projeto ou Oferta não encontrado")
 
-    calendar_service = CalendarService(country_code="BR")
-    weeks = calendar_service.get_weekly_breakdown(
-        project.start_date, project.duration_months
-    )
+    weeks = _get_project_weeks(project)
 
     allocations_added = []
 
@@ -467,10 +469,7 @@ def apply_offer_to_project(
 def get_project_pricing(project_id: int, db: Session = Depends(get_db)):
     """Calculate and retrieve project pricing details"""
     logger.info(f"Calculating price for project: id={project_id}")
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        logger.warning(f"Project not found for pricing: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    project = _get_project_or_404(db, project_id)
 
     pricing_service = PricingService(db)
 
@@ -490,15 +489,8 @@ def get_project_timeline(project_id: int, db: Session = Depends(get_db)):
     """
     Get the weekly timeline breakdown for a project.
     """
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-
-    calendar_service = CalendarService(country_code="BR")
-    weeks = calendar_service.get_weekly_breakdown(
-        project.start_date, project.duration_months
-    )
-    return weeks
+    project = _get_project_or_404(db, project_id)
+    return _get_project_weeks(project)
 
 
 @router.get(
@@ -508,12 +500,7 @@ def get_project_allocations(project_id: int, db: Session = Depends(get_db)):
     """
     List allocations for a project, including professional and weekly breakdown.
     """
-    project_exists = (
-        db.query(models.Project).filter(models.Project.id == project_id).first()
-        is not None
-    )
-    if not project_exists:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    _get_project_or_404(db, project_id)
 
     allocations = (
         db.query(models.ProjectAllocation)
@@ -546,9 +533,7 @@ def update_allocations(
         ...
     ]
     """
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    _get_project_or_404(db, project_id)
 
     updated_count = 0
     for update in updates:
@@ -608,19 +593,8 @@ def add_professional_to_project(
         f"Adding professional to project: project_id={project_id}, professional_id={professional_id}"
     )
 
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        logger.warning(f"Project not found: id={project_id}")
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-
-    professional = (
-        db.query(models.Professional)
-        .filter(models.Professional.id == professional_id)
-        .first()
-    )
-    if not professional:
-        logger.warning(f"Professional not found: id={professional_id}")
-        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    project = _get_project_or_404(db, project_id)
+    professional = _get_professional_or_404(db, professional_id)
 
     if selling_hourly_rate is None:
         selling_hourly_rate = _calculate_selling_rate(project, professional)
@@ -635,10 +609,7 @@ def add_professional_to_project(
         db.add(allocation)
         db.flush()
 
-        calendar_service = CalendarService(country_code="BR")
-        weeks = calendar_service.get_weekly_breakdown(
-            project.start_date, project.duration_months
-        )
+        weeks = _get_project_weeks(project)
 
         _create_weekly_allocations(db, allocation.id, weeks, allocation_percentage=0.0)
 

@@ -15,6 +15,19 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _get_professional_or_404(db: Session, professional_id: int) -> models.Professional:
+    """Fetch professional or raise 404."""
+    professional = (
+        db.query(models.Professional)
+        .filter(models.Professional.id == professional_id)
+        .first()
+    )
+    if not professional:
+        logger.warning(f"Professional not found: id={professional_id}")
+        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    return professional
+
+
 @router.post("/professionals/", response_model=schemas.Professional)
 def create_professional(
     professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)
@@ -60,17 +73,7 @@ def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(ge
 def get_professional(professional_id: int, db: Session = Depends(get_db)):
     """Get a single professional by ID"""
     logger.debug(f"Fetching professional: id={professional_id}")
-    professional = (
-        db.query(models.Professional)
-        .filter(models.Professional.id == professional_id)
-        .first()
-    )
-
-    if not professional:
-        logger.warning(f"Professional not found: id={professional_id}")
-        raise HTTPException(status_code=404, detail="Profissional não encontrado")
-
-    return professional
+    return _get_professional_or_404(db, professional_id)
 
 
 @router.patch("/professionals/{professional_id}", response_model=schemas.Professional)
@@ -81,14 +84,7 @@ def update_professional(
 ):
     """Update a professional's details"""
     logger.info(f"Updating professional: id={professional_id}")
-    db_professional = (
-        db.query(models.Professional)
-        .filter(models.Professional.id == professional_id)
-        .first()
-    )
-    if not db_professional:
-        logger.warning(f"Professional not found for update: id={professional_id}")
-        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    db_professional = _get_professional_or_404(db, professional_id)
 
     update_data = professional.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -106,14 +102,7 @@ def update_professional(
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
     """Delete a professional"""
     logger.info(f"Deleting professional: id={professional_id}")
-    db_professional = (
-        db.query(models.Professional)
-        .filter(models.Professional.id == professional_id)
-        .first()
-    )
-    if not db_professional:
-        logger.warning(f"Professional not found for deletion: id={professional_id}")
-        raise HTTPException(status_code=404, detail="Profissional não encontrado")
+    db_professional = _get_professional_or_404(db, professional_id)
 
     try:
         db.delete(db_professional)
