@@ -27,7 +27,9 @@ async function throwApiError(response) {
 
 export const api = {
     async get(endpoint) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             await throwApiError(response);
         }
@@ -40,7 +42,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -54,7 +57,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -68,7 +72,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -78,7 +83,8 @@ export const api = {
 
     async delete(endpoint) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -87,7 +93,9 @@ export const api = {
     },
 
     async downloadBlob(endpoint, fallbackFilename = null) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             await throwApiError(response);
         }
