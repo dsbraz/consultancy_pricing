@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 from typing import List
 
 import logging
@@ -346,28 +347,30 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     db_project = _get_project_or_404(db, project_id)
 
     try:
-        # 1. Find all allocations for this project
-        allocations = (
-            db.query(models.ProjectAllocation)
-            .filter(models.ProjectAllocation.project_id == project_id)
-            .all()
-        )
-        allocation_ids = [a.id for a in allocations]
+        # Delete allocations and their weekly allocations individually
+        # This uses the objects already loaded by _get_project_or_404, avoiding StaleDataError
+        if db_project.allocations:
+            for allocation in db_project.allocations:
+                # Delete weekly allocations first (cascade will handle this, but being explicit)
+                if allocation.weekly_allocations:
+                    for weekly in allocation.weekly_allocations:
+                        db.delete(weekly)
+                # Delete the allocation itself
+                db.delete(allocation)
 
-        if allocation_ids:
-            # 2. Delete all weekly allocations associated with these allocations
-            db.query(models.WeeklyAllocation).filter(
-                models.WeeklyAllocation.allocation_id.in_(allocation_ids)
-            ).delete(synchronize_session=False)
-
-            # 3. Delete the allocations themselves
-            db.query(models.ProjectAllocation).filter(
-                models.ProjectAllocation.project_id == project_id
-            ).delete(synchronize_session=False)
-
-        # 4. Finally delete the project
+        # Finally delete the project
         db.delete(db_project)
         db.commit()
+    except StaleDataError as e:
+        db.rollback()
+        logger.error(
+            f"StaleDataError deleting project: id={project_id}, error={str(e)}. "
+            "This may occur if objects were modified by another transaction."
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="O projeto foi modificado por outra operação. Por favor, recarregue a página e tente novamente.",
+        )
     except IntegrityError:
         db.rollback()
         logger.warning(
@@ -376,6 +379,13 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=400,
             detail="Não é possível excluir este projeto pois ele possui dependências.",
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting project: id={project_id}, error={str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao excluir projeto: {str(e)}",
         )
 
     logger.info(f"Project deleted successfully: id={project_id}")
