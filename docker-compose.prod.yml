@@ -11,6 +11,12 @@ services:
       - ENVIRONMENT=production
       # CORS: specify allowed origins (comma-separated)
       - CORS_ORIGINS=${CORS_ORIGINS}
+      # Auth Configuration
+      - MS_CLIENT_ID=${MS_CLIENT_ID}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
+      - MS_TENANT_ID=${MS_TENANT_ID}
+      - SECRET_KEY=${SECRET_KEY}
+      - BASE_URL=${BASE_URL}
       # External PostgreSQL connection (Cloud SQL, RDS, Azure Database, etc.)
       # Format examples:
       #   Cloud SQL (private IP): INSTANCE_CONNECTION_NAME=10.x.x.x:5432

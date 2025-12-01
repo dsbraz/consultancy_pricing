@@ -178,6 +178,11 @@ gcloud run deploy $SERVICE_NAME \
     --set-env-vars "DB_PASS=$DB_PASS" \
     --set-env-vars "DB_NAME=$DB_NAME" \
     --set-env-vars "CORS_ORIGINS=${CORS_ORIGINS:-*}" \
+    --set-env-vars "MS_CLIENT_ID=${MS_CLIENT_ID}" \
+    --set-env-vars "MS_CLIENT_SECRET=${MS_CLIENT_SECRET}" \
+    --set-env-vars "MS_TENANT_ID=${MS_TENANT_ID}" \
+    --set-env-vars "SECRET_KEY=${SECRET_KEY}" \
+    --set-env-vars "BASE_URL=${BASE_URL}" \
     --port 8080 \
     --max-instances 10 \
     --min-instances 0 \
