@@ -7,6 +7,7 @@ import { escapeHtml } from '../sanitize.js';
 export async function renderOffers(container) {
     let editingId = null;
     let currentItems = [];
+    let editingOriginalItems = [];
     let professionalsMap = new Map();
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
@@ -248,15 +249,18 @@ export async function renderOffers(container) {
         try {
             if (editingId) {
                 await api.patch(`/offers/${editingId}`, { name });
-                const items = await api.get(`/offers/${editingId}/items`);
+                const itemsToDelete = editingOriginalItems || [];
+                const deletePromises = itemsToDelete.map(item =>
+                    api.delete(`/offers/${editingId}/items/${item.id}`)
+                );
+                const createPromises = itemsPayload.map(item =>
+                    api.post(`/offers/${editingId}/items`, item)
+                );
 
-                // Parallelize batch operations
-                await Promise.all([
-                    ...items.map(item => api.delete(`/offers/${editingId}/items/${item.id}`)),
-                    ...itemsPayload.map(item => api.post(`/offers/${editingId}/items`, item))
-                ]);
+                await Promise.all([...deletePromises, ...createPromises]);
 
                 editingId = null;
+                editingOriginalItems = [];
             } else {
                 await api.post('/offers/', { name, items: itemsPayload });
             }
@@ -280,6 +284,7 @@ export async function renderOffers(container) {
 
     function clearForm() {
         currentItems = [];
+        editingOriginalItems = [];
         document.getElementById('off-name').value = '';
         document.getElementById('off-prof-select').value = '';
         document.getElementById('off-alloc').value = '100';
@@ -323,23 +328,10 @@ export async function renderOffers(container) {
             return;
         }
 
-        // Promise.allSettled for robustness
-        const results = await Promise.allSettled(
-            offers.map(async (offer) => {
-                const items = await api.get(`/offers/${offer.id}/items`);
-                return { ...offer, items };
-            })
-        );
-
-        const offersWithItems = [];
-        results.forEach((res, index) => {
-            if (res.status === 'fulfilled') {
-                offersWithItems.push(res.value);
-            } else {
-                console.error(`Failed to fetch items for offer ${offers[index].id}`, res.reason);
-                offersWithItems.push({ ...offers[index], items: [], error: true });
-            }
-        });
+        const offersWithItems = offers.map(o => ({
+            ...o,
+            items: Array.isArray(o.items) ? o.items : []
+        }));
 
         offersCache = new Map(offersWithItems.map(o => [o.id, o]));
 
@@ -392,15 +384,14 @@ export async function renderOffers(container) {
         setLoading(btnElement, true, '');
 
         try {
-            const [offer, items] = await Promise.all([
-                api.get(`/offers/${id}`),
-                api.get(`/offers/${id}/items`)
-            ]);
+            const offer = await api.get(`/offers/${id}`);
 
             editingId = id;
-            currentItems = items.map(item => {
+            editingOriginalItems = Array.isArray(offer.items) ? offer.items : [];
+            currentItems = editingOriginalItems.map(item => {
                 const p = professionalsMap.get(item.professional_id);
                 return {
+                    id: item.id,
                     role: p ? p.role : '?',
                     level: p ? p.level : '?',
                     allocation_percentage: item.allocation_percentage || 100,

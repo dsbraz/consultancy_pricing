@@ -36,11 +36,16 @@ def _assert_unique_pid(db: Session, pid: str, exclude_id: Optional[int] = None) 
     if existing and existing.id != exclude_id:
         logger.warning(f"Duplicate PID detected: pid={pid}, existing_id={existing.id}")
         raise HTTPException(
-            status_code=400, detail=f"Já existe um profissional com o PID '{pid}'."
+            status_code=409,
+            detail=f"Já existe um profissional com o PID '{pid}'.",
         )
 
 
-@router.post("/professionals/", response_model=schemas.Professional)
+@router.post(
+    "/professionals/",
+    response_model=schemas.Professional,
+    responses={409: {"model": schemas.ErrorResponse}},
+)
 def create_professional(
     professional: schemas.ProfessionalCreate, db: Session = Depends(get_db)
 ):
@@ -89,7 +94,14 @@ def get_professional(professional_id: int, db: Session = Depends(get_db)):
     return _get_professional_or_404(db, professional_id)
 
 
-@router.patch("/professionals/{professional_id}", response_model=schemas.Professional)
+@router.patch(
+    "/professionals/{professional_id}",
+    response_model=schemas.Professional,
+    responses={
+        409: {"model": schemas.ErrorResponse},
+        404: {"model": schemas.ErrorResponse},
+    },
+)
 def update_professional(
     professional_id: int,
     professional: schemas.ProfessionalUpdate,
@@ -114,7 +126,13 @@ def update_professional(
     return db_professional
 
 
-@router.delete("/professionals/{professional_id}")
+@router.delete(
+    "/professionals/{professional_id}",
+    responses={
+        409: {"model": schemas.ErrorResponse},
+        404: {"model": schemas.ErrorResponse},
+    },
+)
 def delete_professional(professional_id: int, db: Session = Depends(get_db)):
     """Delete a professional"""
     logger.info(f"Deleting professional: id={professional_id}")
@@ -129,14 +147,17 @@ def delete_professional(professional_id: int, db: Session = Depends(get_db)):
             f"Integrity error deleting professional: id={professional_id} (likely referenced by other records)"
         )
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Não é possível excluir este profissional pois ele está associado a projetos ou ofertas.",
         )
 
     logger.info(
         f"Professional deleted successfully: id={professional_id}, pid={db_professional.pid}"
     )
-    return {"message": "Professional deleted successfully"}
+    return {
+        "message": "Profissional excluído com sucesso",
+        "professional_id": professional_id,
+    }
 
 
 @router.post("/professionals/import-csv")

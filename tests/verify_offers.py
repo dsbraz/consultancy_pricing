@@ -95,7 +95,8 @@ def test_offer_flow():
 
     # 5. Verify Allocations
     print("\n5. Verifying Allocations...")
-    allocations = make_request("GET", f"/projects/{proj_id}/allocations")
+    proj_data = make_request("GET", f"/projects/{proj_id}?include_allocations=true")
+    allocations = proj_data.get("allocations", [])
 
     found_specialist = False
     found_template = False

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from typing import List
@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 
 def _get_offer_or_404(db: Session, offer_id: int) -> models.Offer:
     """Fetch offer or raise 404."""
-    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
+    offer = (
+        db.query(models.Offer)
+        .options(joinedload(models.Offer.items))
+        .filter(models.Offer.id == offer_id)
+        .first()
+    )
     if not offer:
         logger.warning(f"Offer not found: id={offer_id}")
         raise HTTPException(status_code=404, detail="Oferta não encontrada")
@@ -50,7 +55,11 @@ def _get_offer_item_or_404(
     return item
 
 
-@router.post("/offers/", response_model=schemas.Offer)
+@router.post(
+    "/offers/",
+    response_model=schemas.Offer,
+    responses={400: {"model": schemas.ErrorResponse}},
+)
 def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
     """Create a new offer template"""
     logger.info(f"Creating offer: name={offer.name}, items_count={len(offer.items)}")
@@ -72,6 +81,8 @@ def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
 
         db.commit()
         db.refresh(db_offer)
+        # Ensure items are loaded for the response payload
+        _ = db_offer.items
         logger.info(
             f"Offer created successfully: id={db_offer.id}, name={db_offer.name}"
         )
@@ -87,6 +98,7 @@ def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """List all offer templates"""
     offers = (
         db.query(models.Offer)
+        .options(joinedload(models.Offer.items))
         .order_by(func.lower(models.Offer.name))
         .offset(skip)
         .limit(limit)
@@ -96,13 +108,21 @@ def read_offers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return offers
 
 
-@router.get("/offers/{offer_id}", response_model=schemas.Offer)
+@router.get(
+    "/offers/{offer_id}",
+    response_model=schemas.Offer,
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def read_offer(offer_id: int, db: Session = Depends(get_db)):
     """Get a single offer template by ID"""
     return _get_offer_or_404(db, offer_id)
 
 
-@router.patch("/offers/{offer_id}", response_model=schemas.Offer)
+@router.patch(
+    "/offers/{offer_id}",
+    response_model=schemas.Offer,
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def update_offer(
     offer_id: int, offer: schemas.OfferUpdate, db: Session = Depends(get_db)
 ):
@@ -115,22 +135,17 @@ def update_offer(
 
     db.commit()
     db.refresh(db_offer)
+    # Ensure items relationship is available in the serialized response
+    _ = db_offer.items
     logger.info(f"Offer updated successfully: id={offer_id}")
     return db_offer
 
 
-@router.get("/offers/{offer_id}/items", response_model=List[schemas.OfferItem])
-def get_offer_items(offer_id: int, db: Session = Depends(get_db)):
-    """List items of a specific offer"""
-    _get_offer_or_404(db, offer_id)
-
-    items = (
-        db.query(models.OfferItem).filter(models.OfferItem.offer_id == offer_id).all()
-    )
-    return items
-
-
-@router.post("/offers/{offer_id}/items", response_model=schemas.OfferItem)
+@router.post(
+    "/offers/{offer_id}/items",
+    response_model=schemas.OfferItem,
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def add_item_to_offer(
     offer_id: int, item: schemas.OfferItemCreate, db: Session = Depends(get_db)
 ):
@@ -152,7 +167,11 @@ def add_item_to_offer(
     return db_item
 
 
-@router.patch("/offers/{offer_id}/items/{item_id}", response_model=schemas.OfferItem)
+@router.patch(
+    "/offers/{offer_id}/items/{item_id}",
+    response_model=schemas.OfferItem,
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def update_offer_item(
     offer_id: int,
     item_id: int,
@@ -174,17 +193,26 @@ def update_offer_item(
     return db_item
 
 
-@router.delete("/offers/{offer_id}/items/{item_id}")
+@router.delete(
+    "/offers/{offer_id}/items/{item_id}",
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def delete_offer_item(offer_id: int, item_id: int, db: Session = Depends(get_db)):
     """Remove a specific item from an offer"""
     db_item = _get_offer_item_or_404(db, offer_id, item_id)
     db.delete(db_item)
     db.commit()
     logger.info(f"Item deleted: offer_id={offer_id}, item_id={item_id}")
-    return {"message": "Item deleted successfully"}
+    return {"message": "Item excluído com sucesso", "item_id": item_id}
 
 
-@router.delete("/offers/{offer_id}")
+@router.delete(
+    "/offers/{offer_id}",
+    responses={
+        404: {"model": schemas.ErrorResponse},
+        409: {"model": schemas.ErrorResponse},
+    },
+)
 def delete_offer(offer_id: int, db: Session = Depends(get_db)):
     """Delete an offer template"""
     logger.info(f"Deleting offer: id={offer_id}")
@@ -203,9 +231,9 @@ def delete_offer(offer_id: int, db: Session = Depends(get_db)):
             f"Integrity error deleting offer: id={offer_id} (likely referenced by other records)"
         )
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Não é possível excluir esta oferta pois ela está sendo usada.",
         )
 
     logger.info(f"Offer deleted successfully: id={offer_id}")
-    return {"message": "Offer deleted successfully"}
+    return {"message": "Oferta excluída com sucesso", "offer_id": offer_id}

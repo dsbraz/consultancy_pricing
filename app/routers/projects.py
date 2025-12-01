@@ -22,8 +22,20 @@ logger = logging.getLogger(__name__)
 
 # Helper functions to reduce code duplication
 def _get_project_or_404(db: Session, project_id: int) -> models.Project:
-    """Fetch project or raise 404."""
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    """Fetch project with allocations or raise 404."""
+    project = (
+        db.query(models.Project)
+        .options(
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.professional
+            ),
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.weekly_allocations
+            ),
+        )
+        .filter(models.Project.id == project_id)
+        .first()
+    )
     if not project:
         logger.warning(f"Project not found: id={project_id}")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
@@ -173,6 +185,8 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 
         db.commit()
         db.refresh(db_project)
+        # Ensure allocations and related data are loaded for the response
+        _ = db_project.allocations
         logger.info(
             f"Project created successfully: id={db_project.id}, name={db_project.name}"
         )
@@ -222,6 +236,8 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
 
     db.commit()
     db.refresh(new_project)
+    # Ensure allocations and related data are loaded for the response
+    _ = new_project.allocations
     logger.info(
         f"Project cloned: original_id={project.from_project_id}, new_id={new_project.id}"
     )
@@ -229,20 +245,48 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
 
 
 @router.get("/projects/", response_model=List[schemas.Project])
-def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all projects with pagination"""
-    projects = (
-        db.query(models.Project)
-        .order_by(func.lower(models.Project.name))
-        .offset(skip)
-        .limit(limit)
-        .all()
+def read_projects(
+    skip: int = 0,
+    limit: int = 100,
+    include_allocations: bool = False,
+    db: Session = Depends(get_db),
+):
+    """
+    List all projects with pagination.
+
+    By default, this endpoint retorna apenas os dados básicos do projeto,
+    evitando trazer toda a estrutura de alocações (overfetch).
+    Caso o cliente realmente precise das alocações embutidas,
+    pode usar o parâmetro `include_allocations=true`.
+    """
+    query = db.query(models.Project).order_by(func.lower(models.Project.name))
+
+    if include_allocations:
+        query = query.options(
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.professional
+            ),
+            joinedload(models.Project.allocations).joinedload(
+                models.ProjectAllocation.weekly_allocations
+            ),
+        )
+
+    projects = query.offset(skip).limit(limit).all()
+    logger.debug(
+        "Retrieved %s projects (skip=%s, limit=%s, include_allocations=%s)",
+        len(projects),
+        skip,
+        limit,
+        include_allocations,
     )
-    logger.debug(f"Retrieved {len(projects)} projects (skip={skip}, limit={limit})")
     return projects
 
 
-@router.get("/projects/{project_id}", response_model=schemas.Project)
+@router.get(
+    "/projects/{project_id}",
+    response_model=schemas.Project,
+    responses={404: {"model": schemas.ErrorResponse}},
+)
 def read_project(project_id: int, db: Session = Depends(get_db)):
     """Get a single project by ID"""
     return _get_project_or_404(db, project_id)
@@ -289,7 +333,13 @@ def update_project(
         )
 
 
-@router.delete("/projects/{project_id}")
+@router.delete(
+    "/projects/{project_id}",
+    responses={
+        404: {"model": schemas.ErrorResponse},
+        409: {"model": schemas.ErrorResponse},
+    },
+)
 def delete_project(project_id: int, db: Session = Depends(get_db)):
     """Delete a project and its allocations"""
     logger.info(f"Deleting project: id={project_id}")
@@ -332,7 +382,13 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     return {"message": "Project deleted successfully"}
 
 
-@router.post("/projects/{project_id}/offers")
+@router.post(
+    "/projects/{project_id}/offers",
+    responses={
+        404: {"model": schemas.ErrorResponse},
+        409: {"model": schemas.ErrorResponse},
+    },
+)
 def apply_offer_to_project(
     project_id: int, request: schemas.ApplyOfferRequest, db: Session = Depends(get_db)
 ):
@@ -402,7 +458,14 @@ def apply_offer_to_project(
         raise HTTPException(status_code=400, detail=f"Erro ao aplicar oferta: {str(e)}")
 
 
-@router.get("/projects/{project_id}/pricing", response_model=schemas.ProjectPricing)
+@router.get(
+    "/projects/{project_id}/pricing",
+    response_model=schemas.ProjectPricing,
+    responses={
+        404: {"model": schemas.ErrorResponse},
+        400: {"model": schemas.ErrorResponse},
+    },
+)
 def get_project_pricing(project_id: int, db: Session = Depends(get_db)):
     """Calculate and retrieve project pricing details"""
     logger.info(f"Calculating price for project: id={project_id}")
@@ -431,29 +494,13 @@ def get_project_timeline(project_id: int, db: Session = Depends(get_db)):
     return allocation_service.get_project_weeks(project)
 
 
-@router.get(
-    "/projects/{project_id}/allocations", response_model=List[schemas.ProjectAllocation]
+@router.patch(
+    "/projects/{project_id}/allocations",
+    responses={
+        404: {"model": schemas.ErrorResponse},
+        400: {"model": schemas.ErrorResponse},
+    },
 )
-def get_project_allocations(project_id: int, db: Session = Depends(get_db)):
-    """
-    List allocations for a project, including professional and weekly breakdown.
-    """
-    _get_project_or_404(db, project_id)
-
-    allocations = (
-        db.query(models.ProjectAllocation)
-        .options(
-            joinedload(models.ProjectAllocation.professional),
-            joinedload(models.ProjectAllocation.weekly_allocations),
-        )
-        .filter(models.ProjectAllocation.project_id == project_id)
-        .all()
-    )
-
-    return allocations
-
-
-@router.put("/projects/{project_id}/allocations")
 def update_allocations(
     project_id: int,
     updates: List[schemas.AllocationUpdateItem],

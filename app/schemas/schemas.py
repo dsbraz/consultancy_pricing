@@ -82,6 +82,7 @@ class OfferUpdate(BaseModel):
 
 class Offer(OfferBase, ORMModel):
     id: int
+    items: List[OfferItem] = Field(default_factory=list)
 
 
 class ApplyOfferRequest(BaseModel):
@@ -141,6 +142,7 @@ class ProjectCreate(ProjectBase):
 
 class Project(ProjectBase, ORMModel):
     id: int
+    allocations: List[ProjectAllocation] = Field(default_factory=list)
 
 
 class ProjectPricing(ORMModel):
@@ -176,3 +178,7 @@ class AllocationUpdateItem(BaseModel):
         raise ValueError(
             "Informe allocation_id + selling_hourly_rate ou weekly_allocation_id + hours_allocated"
         )
+
+
+class ErrorResponse(BaseModel):
+    detail: str

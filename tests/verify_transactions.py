@@ -63,7 +63,8 @@ def verify_transactions():
     print(f"Created project: {proj['name']} (ID: {proj_id})")
 
     # Verify allocations exist
-    allocations = make_request("GET", f"/projects/{proj_id}/allocations")
+    proj_data = make_request("GET", f"/projects/{proj_id}?include_allocations=true")
+    allocations = proj_data.get("allocations", [])
     assert len(allocations) == 1, "Project should have 1 allocation"
     print("Project allocations verified.")
 
@@ -85,7 +86,8 @@ def verify_transactions():
     print(f"Created offer: {off['name']} (ID: {off_id})")
 
     # Verify items exist
-    items = make_request("GET", f"/offers/{off_id}/items")
+    off_data_check = make_request("GET", f"/offers/{off_id}")
+    items = off_data_check.get("items", [])
     assert len(items) == 1, "Offer should have 1 item"
     print("Offer items verified.")
 

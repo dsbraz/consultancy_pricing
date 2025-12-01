@@ -74,12 +74,15 @@ def verify_cost_freeze():
         print("Professional allocated to Project P")
 
         # Get allocation details to verify cost_hourly_rate
-        resp = requests.get(f"{BASE_URL}/projects/{project_p_id}/allocations")
+        resp = requests.get(
+            f"{BASE_URL}/projects/{project_p_id}?include_allocations=true"
+        )
         if resp.status_code != 200:
-            print(f"Failed to get allocations: {resp.text}")
+            print(f"Failed to get project: {resp.text}")
             sys.exit(1)
 
-        allocations = resp.json()
+        project = resp.json()
+        allocations = project.get("allocations", [])
         if not allocations:
             print("No allocations found")
             sys.exit(1)
@@ -194,12 +197,14 @@ def verify_cost_freeze():
         print("Professional allocated to Project Q")
 
         # Get allocation details for Project Q
-        resp = requests.get(f"{BASE_URL}/projects/{project_q_id}/allocations")
+        resp = requests.get(
+            f"{BASE_URL}/projects/{project_q_id}?include_allocations=true"
+        )
         if resp.status_code != 200:
-            print(f"Failed to get allocations: {resp.text}")
+            print(f"Failed to get project: {resp.text}")
             sys.exit(1)
 
-        allocations_q = resp.json()
+        allocations_q = resp.json().get("allocations", [])
         allocation_q_data = allocations_q[0]
         frozen_cost_q = allocation_q_data.get("cost_hourly_rate", 0)
         print(f"Frozen cost in Project Q allocation: {frozen_cost_q}")

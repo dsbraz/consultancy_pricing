@@ -57,11 +57,12 @@ def test_allocations():
 
         # 4. Verify allocation exists in list
         print("Verifying allocation in list...")
-        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocations")
+        resp = requests.get(f"{BASE_URL}/projects/{proj_id}?include_allocations=true")
         if resp.status_code != 200:
-            print(f"Failed to get allocations: {resp.text}")
+            print(f"Failed to get project: {resp.text}")
             sys.exit(1)
-        allocations = resp.json()
+        project = resp.json()
+        allocations = project.get("allocations", [])
 
         found = False
         for alloc in allocations:
@@ -84,11 +85,12 @@ def test_allocations():
 
         # 6. Verify allocation is gone
         print("Verifying allocation is gone...")
-        resp = requests.get(f"{BASE_URL}/projects/{proj_id}/allocations")
+        resp = requests.get(f"{BASE_URL}/projects/{proj_id}?include_allocations=true")
         if resp.status_code != 200:
-            print(f"Failed to get allocations: {resp.text}")
+            print(f"Failed to get project: {resp.text}")
             sys.exit(1)
-        allocations = resp.json()
+        project = resp.json()
+        allocations = project.get("allocations", [])
 
         found = False
         for alloc in allocations:

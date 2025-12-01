@@ -95,7 +95,7 @@ def test_flow():
         {"weekly_allocation_id": weekly_alloc_id, "hours_allocated": 20.0},
     ]
 
-    res = make_request("PUT", f"/projects/{proj_id}/allocations", data=updates)
+    res = make_request("PATCH", f"/projects/{proj_id}/allocations", data=updates)
     print(f"Updated {res['updated_count']} items")
 
     # Verify updates

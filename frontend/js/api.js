@@ -1,13 +1,28 @@
-// const API_BASE_URL = "http://localhost:8080";
 const API_BASE_URL = window.location.origin;
+
+async function throwApiError(response) {
+    const errorData = await response.json().catch(() => ({}));
+    
+    let message = response.statusText;
+    if (typeof errorData.detail === 'string') {
+        message = errorData.detail;
+    } else if (errorData.error && typeof errorData.error === 'string') {
+        message = errorData.error;
+    } else if (errorData.message) {
+        message = errorData.message;
+    }
+
+    const error = new Error(message);
+    error.status = response.status;
+    Object.assign(error, errorData);
+    throw error;
+}
 
 export const api = {
     async get(endpoint) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         return response.json();
     },
@@ -21,9 +36,7 @@ export const api = {
             body: JSON.stringify(data)
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         return response.json();
     },
@@ -37,9 +50,7 @@ export const api = {
             body: JSON.stringify(data)
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         return response.json();
     },
@@ -53,9 +64,7 @@ export const api = {
             body: JSON.stringify(data)
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         return response.json();
     },
@@ -65,9 +74,7 @@ export const api = {
             method: 'DELETE'
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         return response.json();
     },
@@ -75,9 +82,7 @@ export const api = {
     async downloadBlob(endpoint, fallbackFilename = null) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.detail || response.statusText;
-            throw new Error(errorMessage);
+            await throwApiError(response);
         }
         const blob = await response.blob();
 
