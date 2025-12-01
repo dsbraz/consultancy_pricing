@@ -1,3 +1,4 @@
+import { api } from './api.js';
 import { renderProfessionals } from './views/professionals.js';
 import { renderOffers } from './views/offers.js';
 import { renderProjects } from './views/projects.js';
@@ -26,7 +27,15 @@ function navigateTo(viewName) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Verify authentication
+    try {
+        await api.get('/auth/me');
+    } catch (e) {
+        // API handles redirect for 401
+        return;
+    }
+
     // Setup navigation
     document.querySelectorAll('.nav-links a').forEach(link => {
         link.addEventListener('click', (e) => {

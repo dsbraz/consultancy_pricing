@@ -74,6 +74,11 @@ Todas as configurações usam as mesmas variáveis:
 | `DB_PASS` | Senha do banco | `sua_senha_segura` |
 | `DB_NAME` | Nome do banco | `postgres` |
 | `CORS_ORIGINS` | Domínios permitidos (CORS) | `https://seuapp.com` ou `*` |
+| `MS_CLIENT_ID` | Client ID do Azure AD | `xxxx-xxxx-xxxx` |
+| `MS_CLIENT_SECRET` | Client Secret do Azure AD | `sua_senha_secreta` |
+| `MS_TENANT_ID` | Tenant ID do Azure AD | `xxxx-xxxx-xxxx` |
+| `SECRET_KEY` | Chave secreta para sessão | `chave_aleatoria_longa` |
+| `BASE_URL` | URL base da aplicação | `http://localhost:8000` ou `https://suaapp.com` |
 
 ## 🆘 Ajuda
 

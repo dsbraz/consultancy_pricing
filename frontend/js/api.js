@@ -1,6 +1,13 @@
 const API_BASE_URL = window.location.origin;
 
 async function throwApiError(response) {
+    if (response.status === 401) {
+        // Redirect to login if unauthorized
+        window.location.href = '/auth/login';
+        // Throw an error to stop execution chain, though the page will reload soon
+        throw new Error('Unauthorized');
+    }
+
     const errorData = await response.json().catch(() => ({}));
     
     let message = response.statusText;
