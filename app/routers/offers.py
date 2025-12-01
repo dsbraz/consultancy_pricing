@@ -17,23 +17,29 @@ logger = logging.getLogger(__name__)
 def create_offer(offer: schemas.OfferCreate, db: Session = Depends(get_db)):
     """Create a new offer template"""
     logger.info(f"Creating offer: name={offer.name}, items_count={len(offer.items)}")
-    db_offer = models.Offer(name=offer.name)
-    db.add(db_offer)
-    db.commit()
-    db.refresh(db_offer)
+    try:
+        db_offer = models.Offer(name=offer.name)
+        db.add(db_offer)
+        db.flush()  # Flush to get ID
 
-    for item in offer.items:
-        db_item = models.OfferItem(
-            offer_id=db_offer.id,
-            allocation_percentage=item.allocation_percentage,
-            professional_id=item.professional_id,
+        for item in offer.items:
+            db_item = models.OfferItem(
+                offer_id=db_offer.id,
+                allocation_percentage=item.allocation_percentage,
+                professional_id=item.professional_id,
+            )
+            db.add(db_item)
+
+        db.commit()
+        db.refresh(db_offer)
+        logger.info(
+            f"Offer created successfully: id={db_offer.id}, name={db_offer.name}"
         )
-        db.add(db_item)
-
-    db.commit()
-    db.refresh(db_offer)
-    logger.info(f"Offer created successfully: id={db_offer.id}, name={db_offer.name}")
-    return db_offer
+        return db_offer
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating offer: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao criar oferta: {str(e)}")
 
 
 @router.get("/offers/", response_model=List[schemas.Offer])

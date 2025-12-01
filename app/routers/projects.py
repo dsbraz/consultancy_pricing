@@ -23,6 +23,45 @@ logger = logging.getLogger(__name__)
 # Helper functions to reduce code duplication
 
 
+def _calculate_selling_rate(
+    project: models.Project,
+    professional: models.Professional,
+    explicit_rate: float = 0.0,
+) -> float:
+    """Calculate selling rate based on project margin or use explicit rate"""
+    if explicit_rate > 0:
+        return explicit_rate
+
+    margin_rate = (
+        project.margin_rate / 100.0 if project.margin_rate > 1 else project.margin_rate
+    )
+    divisor = 1 - margin_rate
+    if divisor <= 0:
+        return professional.hourly_cost
+    return professional.hourly_cost / divisor
+
+
+def _create_weekly_allocations(
+    db: Session,
+    allocation_id: int,
+    weeks: List[dict],
+    allocation_percentage: float = 100.0,
+):
+    """Create weekly allocation records for a given project allocation"""
+    for week in weeks:
+        hours = 0.0
+        if allocation_percentage > 0:
+            hours = week["available_hours"] * (allocation_percentage / 100.0)
+
+        weekly_alloc = models.WeeklyAllocation(
+            allocation_id=allocation_id,
+            week_number=week["week_number"],
+            hours_allocated=hours,
+            available_hours=week["available_hours"],
+        )
+        db.add(weekly_alloc)
+
+
 def get_project_with_allocations(db: Session, project_id: int) -> models.Project:
     """Get project with all allocations and related data for exports"""
     project = (
@@ -64,31 +103,61 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
     logger.info(
         f"Creating project: name={project.name}, duration={project.duration_months} months, allocations={len(project.allocations)}"
     )
-    db_project = models.Project(
-        name=project.name,
-        start_date=project.start_date,
-        duration_months=project.duration_months,
-        tax_rate=project.tax_rate,
-        margin_rate=project.margin_rate,
-    )
-    db.add(db_project)
-    db.commit()
-    db.refresh(db_project)
-
-    for allocation in project.allocations:
-        db_allocation = models.ProjectAllocation(
-            project_id=db_project.id,
-            professional_id=allocation.professional_id,
-            hours_per_month=allocation.hours_per_month,
+    try:
+        db_project = models.Project(
+            name=project.name,
+            start_date=project.start_date,
+            duration_months=project.duration_months,
+            tax_rate=project.tax_rate,
+            margin_rate=project.margin_rate,
         )
-        db.add(db_allocation)
+        db.add(db_project)
+        db.flush()  # Flush to get ID, but don't commit yet
 
-    db.commit()
-    db.refresh(db_project)
-    logger.info(
-        f"Project created successfully: id={db_project.id}, name={db_project.name}"
-    )
-    return db_project
+        # Generate weeks structure
+        calendar_service = CalendarService(country_code="BR")
+        weeks = calendar_service.get_weekly_breakdown(
+            db_project.start_date, db_project.duration_months
+        )
+
+        for allocation in project.allocations:
+            # Fetch professional to get hourly cost
+            prof = (
+                db.query(models.Professional)
+                .filter(models.Professional.id == allocation.professional_id)
+                .first()
+            )
+            if not prof:
+                raise ValueError(f"Professional {allocation.professional_id} not found")
+
+            selling_rate = _calculate_selling_rate(
+                db_project, prof, allocation.selling_hourly_rate
+            )
+
+            db_allocation = models.ProjectAllocation(
+                project_id=db_project.id,
+                professional_id=allocation.professional_id,
+                cost_hourly_rate=prof.hourly_cost,
+                selling_hourly_rate=selling_rate,
+            )
+            db.add(db_allocation)
+            db.flush()
+
+            # Create weekly allocations (default 0 hours for manual entry)
+            _create_weekly_allocations(
+                db, db_allocation.id, weeks, allocation_percentage=0.0
+            )
+
+        db.commit()
+        db.refresh(db_project)
+        logger.info(
+            f"Project created successfully: id={db_project.id}, name={db_project.name}"
+        )
+        return db_project
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating project: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao criar projeto: {str(e)}")
 
 
 def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.Project:
@@ -191,62 +260,64 @@ def update_project(
         project.start_date is not None and project.start_date != db_project.start_date
     )
 
-    update_data = project.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_project, key, value)
+    try:
+        update_data = project.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_project, key, value)
 
-    db.commit()
+        if duration_changed or start_date_changed:
+            calendar_service = CalendarService(country_code="BR")
+            new_weeks = calendar_service.get_weekly_breakdown(
+                db_project.start_date, db_project.duration_months
+            )
 
-    if duration_changed or start_date_changed:
-        calendar_service = CalendarService(country_code="BR")
-        new_weeks = calendar_service.get_weekly_breakdown(
-            db_project.start_date, db_project.duration_months
-        )
+            new_weeks_map = {w["week_number"]: w for w in new_weeks}
 
-        new_weeks_map = {w["week_number"]: w for w in new_weeks}
+            allocations = (
+                db.query(models.ProjectAllocation)
+                .filter(models.ProjectAllocation.project_id == project_id)
+                .all()
+            )
 
-        allocations = (
-            db.query(models.ProjectAllocation)
-            .filter(models.ProjectAllocation.project_id == project_id)
-            .all()
-        )
+            for allocation in allocations:
+                existing_weeks = {
+                    w.week_number: w for w in allocation.weekly_allocations
+                }
 
-        for allocation in allocations:
-            existing_weeks = {w.week_number: w for w in allocation.weekly_allocations}
+                new_week_numbers = set(new_weeks_map.keys())
+                existing_week_numbers = set(existing_weeks.keys())
 
-            new_week_numbers = set(new_weeks_map.keys())
-            existing_week_numbers = set(existing_weeks.keys())
+                weeks_to_update = existing_week_numbers & new_week_numbers
+                for week_num in weeks_to_update:
+                    existing_week = existing_weeks[week_num]
+                    new_week_data = new_weeks_map[week_num]
 
-            weeks_to_update = existing_week_numbers & new_week_numbers
-            for week_num in weeks_to_update:
-                existing_week = existing_weeks[week_num]
-                new_week_data = new_weeks_map[week_num]
+                    existing_week.available_hours = new_week_data["available_hours"]
 
-                existing_week.available_hours = new_week_data["available_hours"]
+                weeks_to_remove = existing_week_numbers - new_week_numbers
+                for week_num in weeks_to_remove:
+                    db.delete(existing_weeks[week_num])
 
-            weeks_to_remove = existing_week_numbers - new_week_numbers
-            for week_num in weeks_to_remove:
-                db.delete(existing_weeks[week_num])
-
-            weeks_to_add = new_week_numbers - existing_week_numbers
-            for week_num in weeks_to_add:
-                week = new_weeks_map[week_num]
-                new_weekly_alloc = models.WeeklyAllocation(
-                    allocation_id=allocation.id,
-                    week_number=week["week_number"],
-                    hours_allocated=0.0,  # Default to 0, user can adjust manually
-                    available_hours=week["available_hours"],
+                weeks_to_add = new_week_numbers - existing_week_numbers
+                weeks_data_to_add = [new_weeks_map[wn] for wn in weeks_to_add]
+                _create_weekly_allocations(
+                    db, allocation.id, weeks_data_to_add, allocation_percentage=0.0
                 )
-                db.add(new_weekly_alloc)
+
+            logger.info(
+                f"Project allocation dates updated: project_id={project_id}, weeks_adjusted={len(new_weeks)}"
+            )
 
         db.commit()
-        logger.info(
-            f"Project allocation dates updated: project_id={project_id}, weeks_adjusted={len(new_weeks)}"
+        db.refresh(db_project)
+        logger.info(f"Project updated successfully: id={project_id}")
+        return db_project
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating project: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Erro ao atualizar projeto: {str(e)}"
         )
-
-    db.refresh(db_project)
-    logger.info(f"Project updated successfully: id={project_id}")
-    return db_project
 
 
 @router.delete("/projects/{project_id}")
@@ -327,75 +398,69 @@ def apply_offer_to_project(
 
     allocations_added = []
 
-    for item in offer.items:
-        professionals_to_allocate = []
+    try:
+        for item in offer.items:
+            professionals_to_allocate = []
 
-        prof = (
-            db.query(models.Professional)
-            .filter(models.Professional.id == item.professional_id)
-            .first()
-        )
-        if not prof:
-            logger.warning(
-                f"Professional {item.professional_id} not found for offer item"
-            )
-            continue
-
-        professionals_to_allocate.append(prof)
-
-        for professional in professionals_to_allocate:
-            existing = (
-                db.query(models.ProjectAllocation)
-                .filter(
-                    models.ProjectAllocation.project_id == project.id,
-                    models.ProjectAllocation.professional_id == professional.id,
-                )
+            prof = (
+                db.query(models.Professional)
+                .filter(models.Professional.id == item.professional_id)
                 .first()
             )
-
-            if existing:
+            if not prof:
+                logger.warning(
+                    f"Professional {item.professional_id} not found for offer item"
+                )
                 continue
 
-            margin_rate = (
-                project.margin_rate / 100.0
-                if project.margin_rate > 1
-                else project.margin_rate
-            )
-            divisor = 1 - margin_rate
-            if divisor <= 0:
-                selling_rate = professional.hourly_cost
-            else:
-                selling_rate = professional.hourly_cost / divisor
+            professionals_to_allocate.append(prof)
 
-            db_alloc = models.ProjectAllocation(
-                project_id=project.id,
-                professional_id=professional.id,
-                cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
-                selling_hourly_rate=selling_rate,
-            )
-            db.add(db_alloc)
-            db.flush()
-            for week in weeks:
-                weekly_alloc = models.WeeklyAllocation(
-                    allocation_id=db_alloc.id,
-                    week_number=week["week_number"],
-                    hours_allocated=week["available_hours"]
-                    * (item.allocation_percentage / 100.0),
-                    available_hours=week["available_hours"],
+            for professional in professionals_to_allocate:
+                existing = (
+                    db.query(models.ProjectAllocation)
+                    .filter(
+                        models.ProjectAllocation.project_id == project.id,
+                        models.ProjectAllocation.professional_id == professional.id,
+                    )
+                    .first()
                 )
-                db.add(weekly_alloc)
 
-            allocations_added.append(professional.name)
+                if existing:
+                    continue
 
-    db.commit()
-    logger.info(
-        f"Offer applied successfully: project_id={project_id}, professionals_added={len(allocations_added)}, weeks={len(weeks)}"
-    )
-    return {
-        "message": "Offer applied",
-        "allocations": allocations_added,
-        "weeks_count": len(weeks),
-    }
+                selling_rate = _calculate_selling_rate(project, professional)
+
+                db_alloc = models.ProjectAllocation(
+                    project_id=project.id,
+                    professional_id=professional.id,
+                    cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
+                    selling_hourly_rate=selling_rate,
+                )
+                db.add(db_alloc)
+                db.flush()
+
+                _create_weekly_allocations(
+                    db,
+                    db_alloc.id,
+                    weeks,
+                    allocation_percentage=item.allocation_percentage,
+                )
+
+                allocations_added.append(professional.name)
+
+        db.commit()
+        logger.info(
+            f"Offer applied successfully: project_id={project_id}, professionals_added={len(allocations_added)}, weeks={len(weeks)}"
+        )
+        return {
+            "message": "Offer applied",
+            "allocations": allocations_added,
+            "weeks_count": len(weeks),
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error applying offer: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao aplicar oferta: {str(e)}")
 
 
 @router.get("/projects/{project_id}/pricing", response_model=schemas.ProjectPricing)
@@ -558,54 +623,45 @@ def add_professional_to_project(
         raise HTTPException(status_code=404, detail="Profissional não encontrado")
 
     if selling_hourly_rate is None:
-        margin_rate = (
-            project.margin_rate / 100.0
-            if project.margin_rate > 1
-            else project.margin_rate
+        selling_hourly_rate = _calculate_selling_rate(project, professional)
+
+    try:
+        allocation = models.ProjectAllocation(
+            project_id=project_id,
+            professional_id=professional_id,
+            cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
+            selling_hourly_rate=selling_hourly_rate,
         )
-        divisor = 1 - margin_rate
-        if divisor <= 0:
-            selling_hourly_rate = professional.hourly_cost
-        else:
-            selling_hourly_rate = professional.hourly_cost / divisor
+        db.add(allocation)
+        db.flush()
 
-    allocation = models.ProjectAllocation(
-        project_id=project_id,
-        professional_id=professional_id,
-        cost_hourly_rate=professional.hourly_cost,  # Freeze cost at allocation time
-        selling_hourly_rate=selling_hourly_rate,
-    )
-    db.add(allocation)
-    db.flush()
-
-    calendar_service = CalendarService(country_code="BR")
-    weeks = calendar_service.get_weekly_breakdown(
-        project.start_date, project.duration_months
-    )
-
-    for week in weeks:
-        weekly_alloc = models.WeeklyAllocation(
-            allocation_id=allocation.id,
-            week_number=week["week_number"],
-            hours_allocated=0.0,  # User will fill in hours manually
-            available_hours=week["available_hours"],
+        calendar_service = CalendarService(country_code="BR")
+        weeks = calendar_service.get_weekly_breakdown(
+            project.start_date, project.duration_months
         )
-        db.add(weekly_alloc)
 
-    db.commit()
-    db.refresh(allocation)
+        _create_weekly_allocations(db, allocation.id, weeks, allocation_percentage=0.0)
 
-    logger.info(
-        f"Professional added to project: project_id={project_id}, professional_id={professional_id}, weeks={len(weeks)}"
-    )
+        db.commit()
+        db.refresh(allocation)
 
-    return {
-        "message": "Professional added to project",
-        "allocation_id": allocation.id,
-        "professional_name": professional.name,
-        "selling_hourly_rate": selling_hourly_rate,
-        "weeks_created": len(weeks),
-    }
+        logger.info(
+            f"Professional added to project: project_id={project_id}, professional_id={professional_id}, weeks={len(weeks)}"
+        )
+
+        return {
+            "message": "Professional added to project",
+            "allocation_id": allocation.id,
+            "professional_name": professional.name,
+            "selling_hourly_rate": selling_hourly_rate,
+            "weeks_created": len(weeks),
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error adding professional to project: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Erro ao adicionar profissional: {str(e)}"
+        )
 
 
 @router.delete("/projects/{project_id}/allocations/{allocation_id}")
