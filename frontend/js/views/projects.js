@@ -260,6 +260,12 @@ export async function renderProjects(container) {
                 });
 
                 if (currentProjectId === editingProjectId) {
+                    // Check if duration or start_date changed (these affect weekly allocations)
+                    const durationChanged = currentProjectData && 
+                        currentProjectData.duration_months !== duration_months;
+                    const startDateChanged = currentProjectData && 
+                        currentProjectData.start_date !== start_date;
+                    
                     // Update local state to reflect changes immediately
                     currentProjectData = {
                         ...currentProjectData,
@@ -270,8 +276,8 @@ export async function renderProjects(container) {
                         margin_rate
                     };
                     document.getElementById('proj-title-display').textContent = `Projeto: ${name}`;
-                    // Allocations structure doesn't change on project edit; no need to refetch
-                    loadAllocationTable(currentProjectId);
+                    // Force reload if duration or start_date changed (new weeks may have been created)
+                    loadAllocationTable(currentProjectId, durationChanged || startDateChanged);
                 }
 
                 editingProjectId = null;
@@ -617,6 +623,16 @@ export async function renderProjects(container) {
         }
     }
 
+    function calculateSellingRateFromMargin(cost, marginRate) {
+        // Fórmula: selling_rate = cost / (1 - margin_rate/100)
+        const marginDecimal = marginRate > 1 ? marginRate / 100.0 : marginRate;
+        const divisor = 1 - marginDecimal;
+        if (divisor <= 0) {
+            return cost;
+        }
+        return cost / divisor;
+    }
+
     function updateAllocationHeaderStyles() {
         const container = document.getElementById('allocation-table-container');
         if (!container) return;
@@ -762,7 +778,12 @@ export async function renderProjects(container) {
 
             html += `<td class="total-hours-cell" style="padding: 0.5rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${Math.round(totalHours)}h</td>`;
             html += `<td style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb;">
-                <button class="btn btn-sm btn-danger" data-allocation-id="${alloc.id}" data-professional-name="${escapeHtml(alloc.professional.name)}">🗑️</button>
+                <div style="display: flex; gap: 0.25rem; justify-content: center;">
+                    <button class="btn btn-sm" data-action="recalculate-rate" data-allocation-id="${alloc.id}" data-cost="${alloc.cost_hourly_rate}" title="Recalcular preço de venda">
+                        <span class="material-icons" style="font-size: 1.1rem;">refresh</span>
+                    </button>
+                    <button class="btn btn-sm btn-danger" data-action="delete" data-allocation-id="${alloc.id}" data-professional-name="${escapeHtml(alloc.professional.name)}">🗑️</button>
+                </div>
             </td>`;
             html += '</tr>';
         });
@@ -817,11 +838,35 @@ export async function renderProjects(container) {
             });
         }
 
-        container.querySelectorAll('button[data-allocation-id]').forEach(btn => {
+        // Event listeners para botões de ação
+        container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const allocationId = btn.dataset.allocationId;
-                const professionalName = btn.dataset.professionalName;
-                removeProfessional(allocationId, professionalName);
+                const action = btn.dataset.action;
+                const allocationId = parseInt(btn.dataset.allocationId);
+                
+                if (action === 'delete') {
+                    const professionalName = btn.dataset.professionalName;
+                    removeProfessional(allocationId, professionalName);
+                } else if (action === 'recalculate-rate') {
+                    // Recalcular preço de venda baseado na margem do projeto
+                    if (!currentProjectData || currentProjectData.margin_rate === undefined) {
+                        alert('Margem do projeto não configurada.');
+                        return;
+                    }
+                    
+                    const cost = parseFloat(btn.dataset.cost);
+                    const marginRate = currentProjectData.margin_rate;
+                    const newSellingRate = calculateSellingRateFromMargin(cost, marginRate);
+                    
+                    // Encontrar o input de selling rate correspondente e atualizar
+                    const row = btn.closest('tr');
+                    const sellingInput = row.querySelector('.alloc-input-selling');
+                    if (sellingInput) {
+                        sellingInput.value = newSellingRate.toFixed(2);
+                        // Disparar evento input para atualizar a margem calculada
+                        sellingInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
             });
         });
 

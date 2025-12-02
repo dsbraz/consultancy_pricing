@@ -207,8 +207,7 @@ class PNGExportService:
 
         # Ordenar alocações pelo nome do profissional
         sorted_allocations = sorted(
-            project.allocations,
-            key=lambda a: a.professional.name.lower()
+            project.allocations, key=lambda a: a.professional.name.lower()
         )
 
         # Rows
@@ -242,7 +241,7 @@ class PNGExportService:
 
             draw.text(
                 (x_pos, y_pos + 8),
-                f"{allocation.selling_hourly_rate:.0f}",
+                f"{allocation.selling_hourly_rate:.2f}",
                 fill=self.text_color,
                 font=font,
             )
