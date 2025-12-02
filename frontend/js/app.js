@@ -28,9 +28,14 @@ function navigateTo(viewName) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verify authentication
+    // Verify authentication and get user info
     try {
-        await api.get('/auth/me');
+        const user = await api.get('/auth/me');
+        // Display user email in sidebar
+        const userEmailElement = document.getElementById('user-email');
+        if (userEmailElement && user.email) {
+            userEmailElement.textContent = user.email;
+        }
     } catch (e) {
         // API handles redirect for 401
         return;
@@ -44,6 +49,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             navigateTo(view);
         });
     });
+
+    // Setup logout link
+    const logoutLink = document.getElementById('logout-link');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                // Call logout endpoint
+                await fetch(`${window.location.origin}/auth/logout`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                // Redirect to login page
+                window.location.href = '/auth/login';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Even if there's an error, try to redirect
+                window.location.href = '/auth/login';
+            }
+        });
+    }
 
     // Initial load
     navigateTo('professionals');
