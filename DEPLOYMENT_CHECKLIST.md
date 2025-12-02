@@ -12,6 +12,19 @@
   - [ ] Password: (sua senha)
   - [ ] Database: `postgres`
 
+## 🔐 Configuração de Autenticação (Microsoft SSO)
+
+- [ ] Registrar App no Azure Active Directory (App Registrations)
+- [ ] Configurar Redirect URI:
+  - [ ] Dev: `http://localhost:8080/auth/callback`
+  - [ ] Prod: `https://<sua-url-cloud-run>/auth/callback`
+- [ ] Criar Client Secret no Azure
+- [ ] Anotar Credenciais:
+  - [ ] `MS_CLIENT_ID`
+  - [ ] `MS_CLIENT_SECRET`
+  - [ ] `MS_TENANT_ID`
+- [ ] Gerar `SECRET_KEY` segura para sessões
+
 ## ☁️ Configuração do Google Cloud
 
 - [ ] Criar conta no [Google Cloud](https://cloud.google.com)
@@ -48,6 +61,10 @@
   - [ ] DB_USER
   - [ ] DB_PASS
   - [ ] DB_NAME
+  - [ ] MS_CLIENT_ID
+  - [ ] MS_CLIENT_SECRET
+  - [ ] MS_TENANT_ID
+  - [ ] SECRET_KEY
 - [ ] Testar conexão com Supabase (opcional):
   ```bash
   python test_supabase_connection.py

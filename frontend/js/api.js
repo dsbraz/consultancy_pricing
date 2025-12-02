@@ -1,6 +1,13 @@
 const API_BASE_URL = window.location.origin;
 
 async function throwApiError(response) {
+    if (response.status === 401) {
+        // Redirect to login if unauthorized
+        window.location.href = '/auth/login';
+        // Throw an error to stop execution chain, though the page will reload soon
+        throw new Error('Unauthorized');
+    }
+
     const errorData = await response.json().catch(() => ({}));
     
     let message = response.statusText;
@@ -20,7 +27,9 @@ async function throwApiError(response) {
 
 export const api = {
     async get(endpoint) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             await throwApiError(response);
         }
@@ -33,7 +42,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -47,7 +57,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -61,7 +72,8 @@ export const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -71,7 +83,8 @@ export const api = {
 
     async delete(endpoint) {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
         if (!response.ok) {
             await throwApiError(response);
@@ -80,7 +93,9 @@ export const api = {
     },
 
     async downloadBlob(endpoint, fallbackFilename = null) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             await throwApiError(response);
         }
