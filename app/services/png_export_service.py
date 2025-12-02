@@ -205,12 +205,18 @@ class PNGExportService:
 
         y_pos = header_y + 40
 
+        # Ordenar alocações pelo nome do profissional
+        sorted_allocations = sorted(
+            project.allocations,
+            key=lambda a: a.professional.name.lower()
+        )
+
         # Rows
-        for allocation in project.allocations:
+        for allocation in sorted_allocations:
             professional = allocation.professional
 
             # Row background
-            if project.allocations.index(allocation) % 2 == 0:
+            if sorted_allocations.index(allocation) % 2 == 0:
                 draw.rectangle(
                     [(start_x, y_pos), (end_x, y_pos + 30)],
                     fill=(252, 252, 252),

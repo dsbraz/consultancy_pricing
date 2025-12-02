@@ -11,6 +11,8 @@ export async function renderProjects(container) {
     let allocationTableData = null;
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
+    let allocationSortColumn = 'professional_name';
+    let allocationSortDirection = 'asc';
 
     container.innerHTML = `
     <div class="card">
@@ -615,6 +617,65 @@ export async function renderProjects(container) {
         }
     }
 
+    function updateAllocationHeaderStyles() {
+        const container = document.getElementById('allocation-table-container');
+        if (!container) return;
+        
+        container.querySelectorAll('th.sortable').forEach((th) => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.column === allocationSortColumn) {
+                th.classList.add(
+                    allocationSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc'
+                );
+            }
+        });
+    }
+
+    function sortAllocationData(allocations) {
+        return [...allocations].sort((a, b) => {
+            let valA, valB;
+
+            switch (allocationSortColumn) {
+                case 'professional_name':
+                    valA = a.professional.name.toLowerCase();
+                    valB = b.professional.name.toLowerCase();
+                    break;
+                case 'role_level':
+                    valA = `${a.professional.role} ${a.professional.level}`.toLowerCase();
+                    valB = `${b.professional.role} ${b.professional.level}`.toLowerCase();
+                    break;
+                case 'cost_hourly_rate':
+                    valA = a.cost_hourly_rate;
+                    valB = b.cost_hourly_rate;
+                    break;
+                case 'selling_hourly_rate':
+                    valA = a.selling_hourly_rate;
+                    valB = b.selling_hourly_rate;
+                    break;
+                case 'margin_percent':
+                    valA = a.selling_hourly_rate > 0
+                        ? ((a.selling_hourly_rate - a.cost_hourly_rate) / a.selling_hourly_rate * 100)
+                        : 0;
+                    valB = b.selling_hourly_rate > 0
+                        ? ((b.selling_hourly_rate - b.cost_hourly_rate) / b.selling_hourly_rate * 100)
+                        : 0;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA === null || valA === undefined) valA = '';
+            if (valB === null || valB === undefined) valB = '';
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return allocationSortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return allocationSortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
     function renderAllocationTable(weeks, allocations) {
         const container = document.getElementById('allocation-table-container');
 
@@ -623,14 +684,17 @@ export async function renderProjects(container) {
             return;
         }
 
+        // Ordenar dados antes de renderizar
+        const sortedAllocations = sortAllocationData(allocations);
+
         let html = '<table class="allocation-table" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">';
 
         html += '<thead><tr style="background: #f9fafb;">';
-        html += '<th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb; position: sticky; left: 0; background: #f9fafb; z-index: 10;">Profissional</th>';
-        html += '<th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Função/Nível</th>';
-        html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; min-width: 100px;">Custo (R$/h)</th>';
-        html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #fef3c7; min-width: 100px;">Taxa de Venda (R$/h)</th>';
-        html += '<th style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #dcfce7; min-width: 100px;">Margem (%)</th>';
+        html += '<th class="sortable" data-column="professional_name" style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb; position: sticky; left: 0; background: #f9fafb; z-index: 10; white-space: nowrap;">Profissional <span class="material-icons sort-icon">arrow_upward</span></th>';
+        html += '<th class="sortable" data-column="role_level" style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb; white-space: nowrap;">Função/Nível <span class="material-icons sort-icon">arrow_upward</span></th>';
+        html += '<th class="sortable" data-column="cost_hourly_rate" style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; min-width: 100px; white-space: nowrap;">Custo (R$/h) <span class="material-icons sort-icon">arrow_upward</span></th>';
+        html += '<th class="sortable" data-column="selling_hourly_rate" style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #fef3c7; min-width: 100px; white-space: nowrap;">Taxa de Venda (R$/h) <span class="material-icons sort-icon">arrow_upward</span></th>';
+        html += '<th class="sortable" data-column="margin_percent" style="padding: 0.5rem; text-align: center; border: 1px solid #e5e7eb; background: #dcfce7; min-width: 100px; white-space: nowrap;">Margem (%) <span class="material-icons sort-icon">arrow_upward</span></th>';
 
         weeks.forEach(week => {
             const weekStart = new Date(week.week_start).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
@@ -647,7 +711,7 @@ export async function renderProjects(container) {
         html += '</tr></thead>';
 
         html += '<tbody>';
-        allocations.forEach(alloc => {
+        sortedAllocations.forEach(alloc => {
             const weeklyHoursMap = {};
             if (alloc.weekly_allocations) {
                 alloc.weekly_allocations.forEach(wa => {
@@ -705,6 +769,23 @@ export async function renderProjects(container) {
         html += '</tbody></table>';
 
         container.innerHTML = html;
+
+        // Adicionar event listeners para ordenação nos headers
+        container.querySelectorAll('th.sortable').forEach((th) => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.column;
+                if (allocationSortColumn === column) {
+                    allocationSortDirection = allocationSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    allocationSortColumn = column;
+                    allocationSortDirection = 'asc';
+                }
+                renderAllocationTable(weeks, allocations);
+            });
+        });
+
+        // Atualizar estilos dos headers
+        updateAllocationHeaderStyles();
 
         const totalHoursContainer = document.getElementById('project-total-hours');
         if (totalHoursContainer) {
