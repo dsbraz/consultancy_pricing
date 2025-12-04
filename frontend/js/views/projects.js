@@ -276,8 +276,8 @@ export async function renderProjects(container) {
                         margin_rate
                     };
                     document.getElementById('proj-title-display').textContent = `Projeto: ${name}`;
-                    // Force reload if duration or start_date changed (new weeks may have been created)
-                    loadAllocationTable(currentProjectId, durationChanged || startDateChanged);
+                    // Reload allocation table (always reload to ensure consistency)
+                    loadAllocationTable(currentProjectId);
                 }
 
                 editingProjectId = null;
@@ -332,8 +332,8 @@ export async function renderProjects(container) {
                 btn.classList.remove('btn-success');
             }, 2000);
 
-            // Allocations changed; force reload from API
-            loadAllocationTable(currentProjectId, true);
+            // Allocations changed; reload from API
+            loadAllocationTable(currentProjectId);
         } catch (error) {
             alert('Erro ao aplicar oferta:\n\n' + getApiErrorMessage(error));
             setLoading(btn, false);
@@ -513,6 +513,7 @@ export async function renderProjects(container) {
             setTimeout(() => {
                 modalAddProf.style.display = 'none';
                 document.getElementById('input-add-prof-rate').value = '';
+                // Reload allocations from API since we just added a new professional
                 loadAllocationTable(currentProjectId);
                 setLoading(btn, false);
                 btn.classList.remove('btn-success');
@@ -549,12 +550,13 @@ export async function renderProjects(container) {
         }
     }
 
+
     async function removeProfessional(allocationId, name) {
         if (confirm(`Tem certeza que deseja remover ${name} deste projeto?`)) {
             try {
                 await api.delete(`/projects/${currentProjectId}/allocations/${allocationId}`);
-                // Allocations changed; force reload from API
-                loadAllocationTable(currentProjectId, true);
+                // Allocations changed; reload from API
+                loadAllocationTable(currentProjectId);
             } catch (error) {
                 alert('Erro ao remover profissional:\n\n' + getApiErrorMessage(error));
             }
@@ -572,29 +574,18 @@ export async function renderProjects(container) {
         }
     }
 
-    async function loadAllocationTable(projectId, forceReloadAllocations = false) {
+    async function loadAllocationTable(projectId) {
         try {
-            const shouldUseProjectAllocations =
-                !forceReloadAllocations &&
-                currentProjectId === projectId &&
-                currentProjectData &&
-                Array.isArray(currentProjectData.allocations) &&
-                currentProjectData.allocations.length > 0;
-
-            let weeks, allocations;
-
-            if (shouldUseProjectAllocations) {
-                // Use allocations that already came embedded in the project payload
-                weeks = await api.get(`/projects/${projectId}/timeline`);
-                allocations = currentProjectData.allocations;
-            } else {
-                // Fallback: fetch both timeline and use standard project endpoint
-                let pData;
-                [weeks, pData] = await Promise.all([
-                    api.get(`/projects/${projectId}/timeline`),
-                    api.get(`/projects/${projectId}`)
-                ]);
-                allocations = pData.allocations;
+            // Always fetch fresh data from API to ensure consistency
+            const [weeks, pData] = await Promise.all([
+                api.get(`/projects/${projectId}/timeline`),
+                api.get(`/projects/${projectId}`)
+            ]);
+            const allocations = pData.allocations;
+            
+            // Update currentProjectData to keep it in sync
+            if (currentProjectId === projectId) {
+                currentProjectData = pData;
             }
 
             allocationTableData = { weeks, allocations };
@@ -1010,8 +1001,8 @@ export async function renderProjects(container) {
             document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
             document.getElementById('proj-details').style.display = 'block';
             loadOffersSelect();
-            // First view: reuse allocations embedded in project payload when available
-            loadAllocationTable(id, false);
+            // Load allocation table
+            loadAllocationTable(id);
 
             // Scroll to details
             document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });

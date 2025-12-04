@@ -591,7 +591,7 @@ def add_professional_to_project(
             project=project,
             professional=professional,
             selling_hourly_rate=selling_hourly_rate,
-            allocation_percentage=0.0,
+            allocation_percentage=100.0,
             weeks=weeks,
         )
 
