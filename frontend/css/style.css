@@ -534,6 +534,26 @@ tr:hover {
     }
 }
 
+/* Row highlight animation for newly added allocations */
+.row-highlight {
+    background-color: var(--md-sys-color-primary-container) !important;
+    animation: highlightFade 2.5s ease-out forwards;
+}
+
+.row-highlight td {
+    background-color: var(--md-sys-color-primary-container) !important;
+    animation: highlightFade 2.5s ease-out forwards;
+}
+
+@keyframes highlightFade {
+    0% {
+        background-color: var(--md-sys-color-primary-container);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
 /* Responsive adjustments for modals */
 @media (max-width: 768px) {
     .modal-container {

@@ -505,7 +505,8 @@ export async function renderProjects(container) {
                 url += `&selling_hourly_rate=${sellingRate}`;
             }
 
-            await api.post(url, {});
+            const response = await api.post(url, {});
+            const allocationId = response.allocation_id;
 
             btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Adicionado!';
             btn.classList.add('btn-success');
@@ -514,7 +515,7 @@ export async function renderProjects(container) {
                 modalAddProf.style.display = 'none';
                 document.getElementById('input-add-prof-rate').value = '';
                 // Reload allocations from API since we just added a new professional
-                loadAllocationTable(currentProjectId);
+                loadAllocationTable(currentProjectId, allocationId);
                 setLoading(btn, false);
                 btn.classList.remove('btn-success');
             }, 1500);
@@ -574,7 +575,7 @@ export async function renderProjects(container) {
         }
     }
 
-    async function loadAllocationTable(projectId) {
+    async function loadAllocationTable(projectId, highlightAllocationId = null) {
         try {
             // Always fetch fresh data from API to ensure consistency
             const [weeks, pData] = await Promise.all([
@@ -589,7 +590,7 @@ export async function renderProjects(container) {
             }
 
             allocationTableData = { weeks, allocations };
-            renderAllocationTable(weeks, allocations);
+            renderAllocationTable(weeks, allocations, highlightAllocationId);
 
             document.getElementById('btn-save-calc').style.display = 'inline-block';
             document.getElementById('btn-export-excel').style.display = 'inline-block';
@@ -683,7 +684,7 @@ export async function renderProjects(container) {
         });
     }
 
-    function renderAllocationTable(weeks, allocations) {
+    function renderAllocationTable(weeks, allocations, highlightAllocationId = null) {
         const container = document.getElementById('allocation-table-container');
 
         if (!allocations || allocations.length === 0) {
@@ -726,7 +727,7 @@ export async function renderProjects(container) {
                 });
             }
 
-            html += '<tr>';
+            html += `<tr data-allocation-id="${alloc.id}">`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; position: sticky; left: 0; background: white; z-index: 5;">${escapeHtml(alloc.professional.name)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${escapeHtml(alloc.professional.role)} ${escapeHtml(alloc.professional.level)}</td>`;
             html += `<td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center;">${formatCurrency(alloc.cost_hourly_rate)}</td>`;
@@ -781,6 +782,18 @@ export async function renderProjects(container) {
         html += '</tbody></table>';
 
         container.innerHTML = html;
+
+        // Aplicar highlight na linha recém-adicionada, se especificado
+        if (highlightAllocationId !== null) {
+            const highlightedRow = container.querySelector(`tr[data-allocation-id="${highlightAllocationId}"]`);
+            if (highlightedRow) {
+                highlightedRow.classList.add('row-highlight');
+                // Remover a classe após a animação completar (2.5s)
+                setTimeout(() => {
+                    highlightedRow.classList.remove('row-highlight');
+                }, 1000);
+            }
+        }
 
         // Adicionar event listeners para ordenação nos headers
         container.querySelectorAll('th.sortable').forEach((th) => {
