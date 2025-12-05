@@ -61,7 +61,7 @@ def verify_sorting():
             print(f"❌ Failed to fetch projects. Status: {resp.status_code}")
             return False
 
-        projects = resp.json()
+        projects = resp.json()["items"]
         names = [p["name"] for p in projects]
 
         if names == sorted(names, key=str.lower):

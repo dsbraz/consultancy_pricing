@@ -13,6 +13,7 @@ export async function renderProjects(container) {
     let currentSortDirection = 'asc';
     let allocationSortColumn = 'professional_name';
     let allocationSortDirection = 'asc';
+    let currentPage = 1;
 
     container.innerHTML = `
     <div class="card">
@@ -36,6 +37,11 @@ export async function renderProjects(container) {
         </div>
         <div id="projects-list">
             <div style="padding: 2rem; text-align: center; color: #6b7280;">Carregando projetos...</div>
+        </div>
+        <div id="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding: 1rem;">
+            <button id="btn-prev-page" class="btn btn-sm" disabled>Anterior</button>
+            <span id="page-indicator" style="color: var(--md-sys-color-on-surface); font-size: 0.875rem;">Página 1 de 1</span>
+            <button id="btn-next-page" class="btn btn-sm" disabled>Próxima</button>
         </div>
     </div>
     
@@ -200,6 +206,7 @@ export async function renderProjects(container) {
 
     document.getElementById('sort-select').addEventListener('change', (e) => {
         currentSortBy = e.target.value;
+        currentPage = 1; // Resetar para primeira página ao mudar ordenação
         loadProjects();
     });
 
@@ -207,6 +214,20 @@ export async function renderProjects(container) {
         currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
         const icon = document.getElementById('sort-icon');
         icon.textContent = currentSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
+        currentPage = 1; // Resetar para primeira página ao mudar ordenação
+        loadProjects();
+    });
+
+    // Event listeners para paginação
+    document.getElementById('btn-prev-page').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            loadProjects();
+        }
+    });
+
+    document.getElementById('btn-next-page').addEventListener('click', () => {
+        currentPage++;
         loadProjects();
     });
 
@@ -943,14 +964,31 @@ export async function renderProjects(container) {
         return sorted;
     }
 
+    function updatePaginationControls(page, totalPages) {
+        const prevBtn = document.getElementById('btn-prev-page');
+        const nextBtn = document.getElementById('btn-next-page');
+        const indicator = document.getElementById('page-indicator');
+        
+        if (!prevBtn || !nextBtn || !indicator) return;
+        
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= totalPages || totalPages === 0;
+        indicator.textContent = `Página ${page} de ${totalPages || 1}`;
+    }
+
     async function loadProjects() {
         try {
             // Evita overfetch: lista não precisa de alocações embutidas
-            const projects = await api.get('/projects/?include_allocations=false');
+            const skip = (currentPage - 1) * 10;
+            const response = await api.get(`/projects/?skip=${skip}&limit=10`);
+            const projects = response.items;
+            const total = response.total;
             const listDiv = document.getElementById('projects-list');
 
             if (projects.length === 0) {
                 listDiv.innerHTML = '<p style="color: #6b7280;">Nenhum projeto criado ainda</p>';
+                const totalPages = Math.ceil(total / 10);
+                updatePaginationControls(currentPage, totalPages);
                 return;
             }
 
@@ -996,6 +1034,10 @@ export async function renderProjects(container) {
                     }
                 });
             });
+            
+            // Atualizar controles de paginação
+            const totalPages = Math.ceil(total / 10);
+            updatePaginationControls(currentPage, totalPages);
         } catch (error) {
             document.getElementById('projects-list').innerHTML = '<p style="color:red">Erro ao carregar projetos.</p>';
             console.error(error);

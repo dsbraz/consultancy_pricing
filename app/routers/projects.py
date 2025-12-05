@@ -245,42 +245,41 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
     return new_project
 
 
-@router.get("/projects/", response_model=List[schemas.Project])
+@router.get("/projects/")
 def read_projects(
     skip: int = 0,
     limit: int = 100,
-    include_allocations: bool = False,
     db: Session = Depends(get_db),
 ):
     """
     List all projects with pagination.
 
-    By default, this endpoint retorna apenas os dados básicos do projeto,
-    evitando trazer toda a estrutura de alocações (overfetch).
-    Caso o cliente realmente precise das alocações embutidas,
-    pode usar o parâmetro `include_allocations=true`.
+    Returns:
+        dict: {"items": List[Project], "total": int}
     """
-    query = db.query(models.Project).order_by(func.lower(models.Project.name))
+    # Calcula total antes de aplicar offset/limit
+    total_count = db.query(models.Project).count()
 
-    if include_allocations:
-        query = query.options(
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.professional
-            ),
-            joinedload(models.Project.allocations).joinedload(
-                models.ProjectAllocation.weekly_allocations
-            ),
-        )
+    # Busca projetos sem alocações (otimização)
+    projects = (
+        db.query(models.Project)
+        .order_by(func.lower(models.Project.name))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-    projects = query.offset(skip).limit(limit).all()
+    # Converte projetos para dict
+    projects_dict = [schemas.Project.model_validate(p).model_dump() for p in projects]
+
     logger.debug(
-        "Retrieved %s projects (skip=%s, limit=%s, include_allocations=%s)",
+        "Retrieved %s projects (skip=%s, limit=%s, total=%s)",
         len(projects),
         skip,
         limit,
-        include_allocations,
+        total_count,
     )
-    return projects
+    return {"items": projects_dict, "total": total_count}
 
 
 @router.get(
