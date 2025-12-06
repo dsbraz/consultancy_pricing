@@ -1048,13 +1048,13 @@ export async function renderProjects(container) {
 
     async function handleViewProject(id, btnElement) {
         setLoading(btnElement, true, '...');
-        document.getElementById('price-result').style.display = 'none';
 
         try {
             const project = await api.get(`/projects/${id}`);
             currentProjectId = id;
             currentProjectData = project;
             document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
+            document.getElementById('price-result').style.display = 'none';
             document.getElementById('proj-details').style.display = 'block';
             loadOffersSelect();
             // Load allocation table
@@ -1071,7 +1071,6 @@ export async function renderProjects(container) {
 
     async function handleEditProject(id, btnElement) {
         setLoading(btnElement, true, '...');
-        document.getElementById('price-result').style.display = 'none';
 
         try {
             const project = await api.get(`/projects/${id}`);
@@ -1085,6 +1084,8 @@ export async function renderProjects(container) {
             document.getElementById('proj-duration').value = project.duration_months;
             document.getElementById('proj-tax').value = project.tax_rate;
             document.getElementById('proj-margin').value = project.margin_rate;
+
+            document.getElementById('price-result').style.display = 'none';
 
             modalProject.classList.add('active');
         } catch (e) {
