@@ -1117,6 +1117,7 @@ export async function renderProjects(container) {
                 if (currentProjectId === id) {
                     currentProjectId = null;
                     document.getElementById('proj-details').style.display = 'none';
+                    document.getElementById('price-result').style.display = 'none';
                 }
                 loadProjects();
             } catch (error) {
@@ -1136,6 +1137,7 @@ export async function renderProjects(container) {
                 if (currentProjectId === id) {
                     currentProjectId = null;
                     document.getElementById('proj-details').style.display = 'none';
+                    document.getElementById('price-result').style.display = 'none';
                 }
                 loadProjects();
             } catch (error) {
