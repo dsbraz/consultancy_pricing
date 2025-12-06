@@ -1048,6 +1048,7 @@ export async function renderProjects(container) {
 
     async function handleViewProject(id, btnElement) {
         setLoading(btnElement, true, '...');
+        document.getElementById('price-result').style.display = 'none';
 
         try {
             const project = await api.get(`/projects/${id}`);
@@ -1070,6 +1071,7 @@ export async function renderProjects(container) {
 
     async function handleEditProject(id, btnElement) {
         setLoading(btnElement, true, '...');
+        document.getElementById('price-result').style.display = 'none';
 
         try {
             const project = await api.get(`/projects/${id}`);
@@ -1107,6 +1109,10 @@ export async function renderProjects(container) {
                     from_project_id: id,
                     allocations: []
                 });
+                if (currentProjectId === id) {
+                    currentProjectId = null;
+                    document.getElementById('proj-details').style.display = 'none';
+                }
                 loadProjects();
             } catch (error) {
                 alert('Erro ao clonar projeto:\n\n' + getApiErrorMessage(error));
