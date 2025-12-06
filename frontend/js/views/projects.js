@@ -363,6 +363,10 @@ export async function renderProjects(container) {
 
     // Save & Calculate
     document.getElementById('btn-save-calc').onclick = async () => {
+        if (!currentProjectId) {
+            alert('Nenhum projeto selecionado.');
+            return;
+        }
         if (!allocationTableData) return;
 
         const btn = document.getElementById('btn-save-calc');
