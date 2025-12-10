@@ -10,12 +10,19 @@ export async function renderProfessionals(container) {
     let currentSortDirection = 'asc';
     let professionalsData = [];
     let currentPage = 1;
+    let searchQuery = '';
 
     // Initial HTML Structure
     container.innerHTML = `
     <div class="card">
       <div class="header-actions">
         <h3>Lista de Profissionais</h3>
+        <div style="display: flex; gap: 1rem; align-items: center; flex: 1; max-width: 400px; margin: 0 1rem;">
+          <div style="position: relative; flex: 1;">
+            <span class="material-icons" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--md-sys-color-on-surface-variant); font-size: 1.25rem; pointer-events: none;">search</span>
+            <input type="text" id="search-professionals" placeholder="Buscar profissionais..." style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.75rem; border: 1px solid var(--md-sys-color-outline-variant, #C4C7C5); border-radius: var(--md-sys-shape-corner-medium, 0.5rem); font-size: 0.875rem; background: var(--md-sys-color-surface-container-high, #f5f5f5);">
+          </div>
+        </div>
         <div style="display: flex; gap: 0.5rem;">
           <button id="btn-import-csv" class="btn" style="background: var(--color-secondary);">
             <span class="material-icons" style="margin-right: 0.5rem;">upload_file</span>
@@ -159,6 +166,23 @@ export async function renderProfessionals(container) {
     document.getElementById('btn-next-page').addEventListener('click', () => {
         currentPage++;
         loadProfessionals();
+    });
+
+    // Event listener para busca
+    let searchTimeout = null;
+    const searchInput = document.getElementById('search-professionals');
+    searchInput.addEventListener('input', (e) => {
+        // Limpar timeout anterior
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        // Debounce: aguardar 300ms após o usuário parar de digitar
+        searchTimeout = setTimeout(() => {
+            searchQuery = e.target.value;
+            currentPage = 1; // Resetar para primeira página ao buscar
+            loadProfessionals();
+        }, 300);
     });
 
     function updateHeaderStyles() {
@@ -361,7 +385,11 @@ export async function renderProfessionals(container) {
     async function loadProfessionals() {
         try {
             const skip = (currentPage - 1) * 50;
-            const response = await api.get(`/professionals/?skip=${skip}&limit=50`);
+            let url = `/professionals/?skip=${skip}&limit=50`;
+            if (searchQuery && searchQuery.trim()) {
+                url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+            }
+            const response = await api.get(url);
             professionalsData = response.items;
             const total = response.total;
             
@@ -383,8 +411,11 @@ export async function renderProfessionals(container) {
         const tbody = document.querySelector('#prof-table tbody');
 
         if (sortedProfs.length === 0) {
+            const message = searchQuery && searchQuery.trim() 
+                ? `Nenhum profissional encontrado para "${escapeHtml(searchQuery.trim())}"`
+                : 'Nenhum profissional encontrado.';
             tbody.innerHTML =
-                '<tr><td colspan="7" style="text-align:center; padding: 1rem;">Nenhum profissional encontrado.</td></tr>';
+                `<tr><td colspan="7" style="text-align:center; padding: 1rem; color: #6b7280;">${message}</td></tr>`;
             return;
         }
 

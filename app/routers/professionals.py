@@ -77,32 +77,45 @@ def create_professional(
 def read_professionals(
     skip: int = 0,
     limit: int = 100,
+    search: str = None,
     db: Session = Depends(get_db),
 ):
     """
     List all professionals with pagination.
 
+    Args:
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        search: Optional search term to filter professionals by name
+
     Returns:
         PaginatedResponse[Professional]: {"items": List[Professional], "total": int}
     """
-    # Calcula total antes de aplicar offset/limit
-    total_count = db.query(models.Professional).count()
+    # Base query
+    base_query = db.query(models.Professional)
+
+    # Aplicar filtro de busca se fornecido
+    if search:
+        base_query = base_query.filter(models.Professional.name.ilike(f"%{search}%"))
+
+    # Calcula total antes de aplicar offset/limit (considerando filtro de busca)
+    total_count = base_query.count()
 
     # Busca profissionais
     professionals = (
-        db.query(models.Professional)
-        .order_by(func.lower(models.Professional.name))
+        base_query.order_by(func.lower(models.Professional.name))
         .offset(skip)
         .limit(limit)
         .all()
     )
 
     logger.debug(
-        "Retrieved %s professionals (skip=%s, limit=%s, total=%s)",
+        "Retrieved %s professionals (skip=%s, limit=%s, total=%s, search=%s)",
         len(professionals),
         skip,
         limit,
         total_count,
+        search,
     )
     return schemas.PaginatedResponse(items=professionals, total=total_count)
 

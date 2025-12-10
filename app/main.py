@@ -77,15 +77,13 @@ app.include_router(auth.router, tags=["Authentication"])
 app.include_router(
     professionals.router,
     tags=["Professionals"],
-    dependencies=[Depends(get_current_user)]
+    dependencies=[Depends(get_current_user)],
 )
 app.include_router(
-    offers.router, tags=["Offers"],
-    dependencies=[Depends(get_current_user)]
+    offers.router, tags=["Offers"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    projects.router, tags=["Projects"],
-    dependencies=[Depends(get_current_user)]
+    projects.router, tags=["Projects"], dependencies=[Depends(get_current_user)]
 )
 logger.info("API routers registered successfully")
 

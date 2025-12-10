@@ -275,8 +275,7 @@ def read_projects(
 
     # Busca projetos sem alocações (otimização)
     projects = (
-        base_query
-        .order_by(func.lower(models.Project.name))
+        base_query.order_by(func.lower(models.Project.name))
         .offset(skip)
         .limit(limit)
         .all()
