@@ -88,14 +88,15 @@ export async function renderOffers(container) {
 
     // Fetch critical data in parallel
     try {
-        const [profData, offersData] = await Promise.all([
+        const [profs, offersData] = await Promise.all([
             api.get('/professionals/'),
             api.get('/offers/')
         ]);
 
-        professionalsMap = new Map(profData.map(p => [p.id, p]));
+        const profsList = profs.items;
+        professionalsMap = new Map(profsList.map(p => [p.id, p]));
 
-        populateProfessionalSelect(profData);
+        populateProfessionalSelect(profsList);
         await enrichAndRenderOffers(offersData);
     } catch (e) {
         console.error("Initialization error", e);

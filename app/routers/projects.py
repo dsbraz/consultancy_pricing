@@ -245,7 +245,7 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
     return new_project
 
 
-@router.get("/projects/")
+@router.get("/projects/", response_model=schemas.PaginatedResponse[schemas.Project])
 def read_projects(
     skip: int = 0,
     limit: int = 100,
@@ -255,7 +255,7 @@ def read_projects(
     List all projects with pagination.
 
     Returns:
-        dict: {"items": List[Project], "total": int}
+        PaginatedResponse[Project]: {"items": List[Project], "total": int}
     """
     # Calcula total antes de aplicar offset/limit
     total_count = db.query(models.Project).count()
@@ -269,9 +269,6 @@ def read_projects(
         .all()
     )
 
-    # Converte projetos para dict
-    projects_dict = [schemas.Project.model_validate(p).model_dump() for p in projects]
-
     logger.debug(
         "Retrieved %s projects (skip=%s, limit=%s, total=%s)",
         len(projects),
@@ -279,7 +276,7 @@ def read_projects(
         limit,
         total_count,
     )
-    return {"items": projects_dict, "total": total_count}
+    return schemas.PaginatedResponse(items=projects, total=total_count)
 
 
 @router.get(

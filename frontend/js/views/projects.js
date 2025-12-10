@@ -557,8 +557,9 @@ export async function renderProjects(container) {
 
         try {
             const profs = await api.get('/professionals/');
+            const profsList = profs.items;
 
-            sel.innerHTML = '<option value="">-- Selecionar --</option>' + profs.map(p => `<option value="${p.id}" data-cost="${p.hourly_cost}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('');
+            sel.innerHTML = '<option value="">-- Selecionar --</option>' + profsList.map(p => `<option value="${p.id}" data-cost="${p.hourly_cost}">${escapeHtml(p.name)} (${escapeHtml(p.role)} ${escapeHtml(p.level)})</option>`).join('');
 
             // Update cost display on change
             sel.onchange = () => {

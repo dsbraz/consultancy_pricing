@@ -40,7 +40,7 @@ services:
 
   postgres:
     container_name: consultancy_pricing_postgres_dev
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASS:-postgres}

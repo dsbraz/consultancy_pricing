@@ -9,6 +9,7 @@ export async function renderProfessionals(container) {
     let currentSortColumn = 'name';
     let currentSortDirection = 'asc';
     let professionalsData = [];
+    let currentPage = 1;
 
     // Initial HTML Structure
     container.innerHTML = `
@@ -42,6 +43,11 @@ export async function renderProfessionals(container) {
           <tr><td colspan="7" style="text-align:center; padding: 2rem;">Carregando dados...</td></tr>
         </tbody>
       </table>
+      <div id="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding: 1rem;">
+        <button id="btn-prev-page" class="btn btn-sm" disabled>Anterior</button>
+        <span id="page-indicator" style="color: var(--md-sys-color-on-surface); font-size: 0.875rem;">Página 1 de 1</span>
+        <button id="btn-next-page" class="btn btn-sm" disabled>Próxima</button>
+      </div>
     </div>
 
     <!-- Modal for CSV Import -->
@@ -137,9 +143,22 @@ export async function renderProfessionals(container) {
                 currentSortColumn = column;
                 currentSortDirection = 'asc';
             }
-            renderTableBody();
-            updateHeaderStyles();
+            currentPage = 1; // Resetar para primeira página ao mudar ordenação
+            loadProfessionals();
         });
+    });
+
+    // Event listeners para paginação
+    document.getElementById('btn-prev-page').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            loadProfessionals();
+        }
+    });
+
+    document.getElementById('btn-next-page').addEventListener('click', () => {
+        currentPage++;
+        loadProfessionals();
     });
 
     function updateHeaderStyles() {
@@ -327,11 +346,31 @@ export async function renderProfessionals(container) {
         document.getElementById('prof-type').value = 'false';
     }
 
+    function updatePaginationControls(page, totalPages) {
+        const prevBtn = document.getElementById('btn-prev-page');
+        const nextBtn = document.getElementById('btn-next-page');
+        const indicator = document.getElementById('page-indicator');
+
+        if (!prevBtn || !nextBtn || !indicator) return;
+
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= totalPages;
+        indicator.textContent = `Página ${page} de ${totalPages || 1}`;
+    }
+
     async function loadProfessionals() {
         try {
-            professionalsData = await api.get('/professionals/');
+            const skip = (currentPage - 1) * 50;
+            const response = await api.get(`/professionals/?skip=${skip}&limit=50`);
+            professionalsData = response.items;
+            const total = response.total;
+            
             renderTableBody();
             updateHeaderStyles();
+            
+            // Atualizar controles de paginação
+            const totalPages = Math.ceil(total / 50);
+            updatePaginationControls(currentPage, totalPages);
         } catch (error) {
             console.error('Failed to load professionals', error);
             document.querySelector('#prof-table tbody').innerHTML =

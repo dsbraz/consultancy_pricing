@@ -71,9 +71,22 @@ def create_professional(
     return db_professional
 
 
-@router.get("/professionals/", response_model=List[schemas.Professional])
-def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all professionals with pagination"""
+@router.get("/professionals/", response_model=schemas.PaginatedResponse[schemas.Professional])
+def read_professionals(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    List all professionals with pagination.
+
+    Returns:
+        PaginatedResponse[Professional]: {"items": List[Professional], "total": int}
+    """
+    # Calcula total antes de aplicar offset/limit
+    total_count = db.query(models.Professional).count()
+
+    # Busca profissionais
     professionals = (
         db.query(models.Professional)
         .order_by(func.lower(models.Professional.name))
@@ -81,10 +94,15 @@ def read_professionals(skip: int = 0, limit: int = 100, db: Session = Depends(ge
         .limit(limit)
         .all()
     )
+
     logger.debug(
-        f"Retrieved {len(professionals)} professionals (skip={skip}, limit={limit})"
+        "Retrieved %s professionals (skip=%s, limit=%s, total=%s)",
+        len(professionals),
+        skip,
+        limit,
+        total_count,
     )
-    return professionals
+    return schemas.PaginatedResponse(items=professionals, total=total_count)
 
 
 @router.get("/professionals/{professional_id}", response_model=schemas.Professional)
