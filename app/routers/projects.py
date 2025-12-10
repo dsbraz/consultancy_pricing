@@ -249,20 +249,33 @@ def _clone_project_logic(project: schemas.ProjectCreate, db: Session) -> models.
 def read_projects(
     skip: int = 0,
     limit: int = 100,
+    search: str = None,
     db: Session = Depends(get_db),
 ):
     """
     List all projects with pagination.
 
+    Args:
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        search: Optional search term to filter projects by name
+
     Returns:
         PaginatedResponse[Project]: {"items": List[Project], "total": int}
     """
-    # Calcula total antes de aplicar offset/limit
-    total_count = db.query(models.Project).count()
+    # Base query
+    base_query = db.query(models.Project)
+
+    # Aplicar filtro de busca se fornecido
+    if search:
+        base_query = base_query.filter(models.Project.name.ilike(f"%{search}%"))
+
+    # Calcula total antes de aplicar offset/limit (considerando filtro de busca)
+    total_count = base_query.count()
 
     # Busca projetos sem alocações (otimização)
     projects = (
-        db.query(models.Project)
+        base_query
         .order_by(func.lower(models.Project.name))
         .offset(skip)
         .limit(limit)
@@ -270,11 +283,12 @@ def read_projects(
     )
 
     logger.debug(
-        "Retrieved %s projects (skip=%s, limit=%s, total=%s)",
+        "Retrieved %s projects (skip=%s, limit=%s, total=%s, search=%s)",
         len(projects),
         skip,
         limit,
         total_count,
+        search,
     )
     return schemas.PaginatedResponse(items=projects, total=total_count)
 

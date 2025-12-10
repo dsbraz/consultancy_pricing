@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from typing import List, Optional
+from typing import Optional
 import csv
 import io
 import logging
@@ -71,7 +71,9 @@ def create_professional(
     return db_professional
 
 
-@router.get("/professionals/", response_model=schemas.PaginatedResponse[schemas.Professional])
+@router.get(
+    "/professionals/", response_model=schemas.PaginatedResponse[schemas.Professional]
+)
 def read_professionals(
     skip: int = 0,
     limit: int = 100,

@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const user = await api.get('/auth/me');
         // Display user email in sidebar
+        const userEmailElement = document.getElementById('user-email');
         if (userEmailElement && user.email) {
             userEmailElement.textContent = user.email;
         }

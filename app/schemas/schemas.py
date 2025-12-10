@@ -2,7 +2,7 @@ from typing import List, Optional, Annotated, TypeVar, Generic
 from pydantic import BaseModel, ConfigDict, Field, AfterValidator, model_validator
 from datetime import date
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def _strip_non_empty_string(value: Optional[str]) -> Optional[str]:
@@ -188,5 +188,6 @@ class ErrorResponse(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     """Generic paginated response schema"""
+
     items: List[T]
     total: int

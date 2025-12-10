@@ -14,30 +14,38 @@ export async function renderProjects(container) {
     let allocationSortColumn = 'professional_name';
     let allocationSortDirection = 'asc';
     let currentPage = 1;
+    let searchQuery = '';
 
     container.innerHTML = `
     <div class="card">
         <div class="header-actions">
             <h3>Lista de Projetos</h3>
+            <div style="display: flex; gap: 1rem; align-items: center; flex: 1; max-width: 400px; margin: 0 1rem;">
+                <div style="position: relative; flex: 1;">
+                    <span class="material-icons" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--md-sys-color-on-surface-variant); font-size: 1.25rem; pointer-events: none;">search</span>
+                    <input type="text" id="search-projects" placeholder="Buscar projetos..." style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.75rem; border: 1px solid var(--md-sys-color-outline-variant, #C4C7C5); border-radius: var(--md-sys-shape-corner-medium, 0.5rem); font-size: 0.875rem; background: var(--md-sys-color-surface-container-high, #f5f5f5);">
+                </div>
+            </div>
             <button id="btn-new-project" class="btn btn-primary">
                 <span class="material-icons" style="margin-right: 0.5rem;">add</span>
                 Novo Projeto
             </button>
         </div>
-        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0 0.5rem;">
-            <label style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ordenar por:</label>
-            <select id="sort-select" style="padding: 0.5rem; border: 1px solid var(--md-sys-color-outline); border-radius: 0.25rem; background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); font-size: 0.875rem;">
-                <option value="name">Nome</option>
-                <option value="start_date">Data de Início</option>
-                <option value="created_at">Data de Criação</option>
-            </select>
-            <button id="sort-direction-btn" class="btn btn-sm" style="display: flex; align-items: center; gap: 0.25rem; min-width: auto; padding: 0.5rem 0.75rem;">
-                <span class="material-icons" id="sort-icon" style="font-size: 1.25rem;">arrow_upward</span>
-            </button>
-        </div>
-        <div id="projects-list">
-            <div style="padding: 2rem; text-align: center; color: #6b7280;">Carregando projetos...</div>
-        </div>
+        <table class="table" id="projects-table">
+            <thead>
+                <tr>
+                    <th class="sortable" data-column="name">Nome <span class="material-icons sort-icon">arrow_upward</span></th>
+                    <th class="sortable" data-column="start_date">Data de Início <span class="material-icons sort-icon">arrow_upward</span></th>
+                    <th>Duração</th>
+                    <th>Impostos</th>
+                    <th>Margem</th>
+                    <th style="text-align: center;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" style="text-align:center; padding: 2rem;">Carregando projetos...</td></tr>
+            </tbody>
+        </table>
         <div id="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding: 1rem;">
             <button id="btn-prev-page" class="btn btn-sm" disabled>Anterior</button>
             <span id="page-indicator" style="color: var(--md-sys-color-on-surface); font-size: 0.875rem;">Página 1 de 1</span>
@@ -204,18 +212,19 @@ export async function renderProjects(container) {
 
     // --- Event Listeners ---
 
-    document.getElementById('sort-select').addEventListener('change', (e) => {
-        currentSortBy = e.target.value;
-        currentPage = 1; // Resetar para primeira página ao mudar ordenação
-        loadProjects();
-    });
-
-    document.getElementById('sort-direction-btn').addEventListener('click', () => {
-        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-        const icon = document.getElementById('sort-icon');
-        icon.textContent = currentSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
-        currentPage = 1; // Resetar para primeira página ao mudar ordenação
-        loadProjects();
+    // Ordenação clicável nos headers da tabela
+    container.querySelectorAll('th.sortable').forEach((th) => {
+        th.addEventListener('click', () => {
+            const column = th.dataset.column;
+            if (currentSortBy === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortBy = column;
+                currentSortDirection = 'asc';
+            }
+            currentPage = 1; // Resetar para primeira página ao mudar ordenação
+            loadProjects();
+        });
     });
 
     // Event listeners para paginação
@@ -229,6 +238,23 @@ export async function renderProjects(container) {
     document.getElementById('btn-next-page').addEventListener('click', () => {
         currentPage++;
         loadProjects();
+    });
+
+    // Event listener para busca
+    let searchTimeout = null;
+    const searchInput = document.getElementById('search-projects');
+    searchInput.addEventListener('input', (e) => {
+        // Limpar timeout anterior
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        // Debounce: aguardar 300ms após o usuário parar de digitar
+        searchTimeout = setTimeout(() => {
+            searchQuery = e.target.value;
+            currentPage = 1; // Resetar para primeira página ao buscar
+            loadProjects();
+        }, 300);
     });
 
     const modalProject = document.getElementById('modal-project');
@@ -981,55 +1007,73 @@ export async function renderProjects(container) {
         indicator.textContent = `Página ${page} de ${totalPages || 1}`;
     }
 
+    function updateHeaderStyles() {
+        container.querySelectorAll('th.sortable').forEach((th) => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.column === currentSortBy) {
+                th.classList.add(
+                    currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc'
+                );
+            }
+        });
+    }
+
     async function loadProjects() {
         try {
             // Evita overfetch: lista não precisa de alocações embutidas
             const skip = (currentPage - 1) * 10;
-            const response = await api.get(`/projects/?skip=${skip}&limit=10`);
+            let url = `/projects/?skip=${skip}&limit=10`;
+            if (searchQuery && searchQuery.trim()) {
+                url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+            }
+            const response = await api.get(url);
             const projects = response.items;
             const total = response.total;
-            const listDiv = document.getElementById('projects-list');
+            const tbody = document.querySelector('#projects-table tbody');
 
             if (projects.length === 0) {
-                listDiv.innerHTML = '<p style="color: #6b7280;">Nenhum projeto criado ainda</p>';
+                const message = searchQuery && searchQuery.trim() 
+                    ? `Nenhum projeto encontrado para "${escapeHtml(searchQuery.trim())}"`
+                    : 'Nenhum projeto criado ainda';
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 1rem; color: #6b7280;">${message}</td></tr>`;
                 const totalPages = Math.ceil(total / 10);
                 updatePaginationControls(currentPage, totalPages);
+                updateHeaderStyles();
                 return;
             }
 
             const sortedProjects = sortProjects(projects, currentSortBy, currentSortDirection);
 
-            listDiv.innerHTML = sortedProjects.map(p => `
-            <div style="border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 1rem; margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div>
-                        <h4 style="margin: 0 0 0.25rem 0;">${escapeHtml(p.name)}</h4>
-                        <small style="color: #6b7280;">
-                            Início: ${escapeHtml(p.start_date)} | Duração: ${p.duration_months} meses<br>
-                            Impostos: ${p.tax_rate}% | Margem: ${p.margin_rate}%
-                        </small>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-sm" data-action="view" data-project-id="${p.id}">Visualizar</button>
-                        <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}">Editar</button>
-                        <button class="btn btn-sm" data-action="clone" data-project-id="${p.id}" title="Clonar Projeto">
-                            <span class="material-icons" style="font-size: 1.1rem;">content_copy</span>
-                        </button>
-                        <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}">Excluir</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+            tbody.innerHTML = sortedProjects.map(p => {
+                const startDate = new Date(p.start_date).toLocaleDateString('pt-BR');
+                return `
+                <tr data-project-id="${p.id}" style="cursor: pointer;">
+                    <td>${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(startDate)}</td>
+                    <td>${p.duration_months} meses</td>
+                    <td>${p.tax_rate}%</td>
+                    <td>${p.margin_rate}%</td>
+                    <td style="text-align: center;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                            <button class="btn btn-sm" data-action="clone" data-project-id="${p.id}" title="Clonar Projeto">
+                                <span class="material-icons" style="font-size: 1.1rem;">content_copy</span>
+                            </button>
+                            <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}">Editar</button>
+                            <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}">Excluir</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            }).join('');
 
-            // Event Delegation
-            listDiv.querySelectorAll('button[data-action]').forEach(btn => {
-                btn.addEventListener('click', () => {
+            // Event Delegation para botões de ação
+            tbody.querySelectorAll('button[data-action]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevenir que o clique na linha seja acionado
                     const action = btn.dataset.action;
                     const projectId = parseInt(btn.dataset.projectId);
 
-                    if (action === 'view') {
-                        handleViewProject(projectId, btn);
-                    } else if (action === 'edit') {
+                    if (action === 'edit') {
                         handleEditProject(projectId, btn);
                     } else if (action === 'clone') {
                         handleCloneProject(projectId, btn);
@@ -1039,12 +1083,29 @@ export async function renderProjects(container) {
                     }
                 });
             });
+
+            // Event Delegation para cliques nas linhas (visualizar projeto)
+            tbody.querySelectorAll('tr[data-project-id]').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    // Não acionar se o clique foi em um botão
+                    if (e.target.closest('button')) {
+                        return;
+                    }
+                    const projectId = parseInt(row.dataset.projectId);
+                    // Passar null como elemento para não mostrar loading
+                    handleViewProject(projectId, null);
+                });
+            });
             
-            // Atualizar controles de paginação
+            // Atualizar controles de paginação e estilos dos headers
             const totalPages = Math.ceil(total / 10);
             updatePaginationControls(currentPage, totalPages);
+            updateHeaderStyles();
         } catch (error) {
-            document.getElementById('projects-list').innerHTML = '<p style="color:red">Erro ao carregar projetos.</p>';
+            const tbody = document.querySelector('#projects-table tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem; color:red;">Erro ao carregar projetos.</td></tr>';
+            }
             console.error(error);
         }
     };
@@ -1052,7 +1113,10 @@ export async function renderProjects(container) {
     // --- Scoped Action Handlers (No Window Globals) ---
 
     async function handleViewProject(id, btnElement) {
-        setLoading(btnElement, true, '...');
+        // Só mostrar loading se for um botão
+        if (btnElement) {
+            setLoading(btnElement, true, '...');
+        }
 
         try {
             const project = await api.get(`/projects/${id}`);
@@ -1070,7 +1134,9 @@ export async function renderProjects(container) {
         } catch (e) {
             alert('Erro ao visualizar projeto.');
         } finally {
-            setLoading(btnElement, false);
+            if (btnElement) {
+                setLoading(btnElement, false);
+            }
         }
     }
 

@@ -77,7 +77,7 @@ app.include_router(auth.router, tags=["Authentication"])
 app.include_router(
     professionals.router,
     tags=["Professionals"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user)]
 )
 app.include_router(
     offers.router, tags=["Offers"],
