@@ -285,6 +285,10 @@ export async function renderProjects(container) {
     };
 
     document.getElementById('btn-save-project').onclick = async () => {
+        if (currentProjectData && currentProjectData.locked && editingProjectId) {
+            alert('Projeto bloqueado para ajustes.');
+            return;
+        }
         const name = normalizeText(document.getElementById('proj-name').value);
         const start_date = document.getElementById('proj-start').value;
         const duration_months = parseInt(document.getElementById('proj-duration').value);
@@ -336,12 +340,18 @@ export async function renderProjects(container) {
                     name, start_date, duration_months, tax_rate, margin_rate, allocations: []
                 });
                 currentProjectId = project.id;
+                currentProjectData = project;
                 document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
                 document.getElementById('proj-details').style.display = 'block';
+                document.getElementById('price-result').style.display = 'none';
+                allocationTableData = null;
 
                 modalProject.classList.remove('active');
                 clearProjectForm();
                 loadOffersSelect();
+                loadAllocationTable(project.id);
+                applyProjectLockState();
+                document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
                 loadProjects();
             }
         } catch (error) {
@@ -360,6 +370,10 @@ export async function renderProjects(container) {
     }
 
     document.getElementById('btn-apply-off').onclick = async () => {
+        if (currentProjectData && currentProjectData.locked) {
+            alert('Projeto bloqueado para ajustes.');
+            return;
+        }
         const offId = document.getElementById('sel-offer').value;
         if (!currentProjectId || !offId) return;
 
@@ -391,6 +405,10 @@ export async function renderProjects(container) {
     document.getElementById('btn-save-calc').onclick = async () => {
         if (!currentProjectId) {
             alert('Nenhum projeto selecionado.');
+            return;
+        }
+        if (currentProjectData && currentProjectData.locked) {
+            alert('Projeto bloqueado para ajustes.');
             return;
         }
         if (!allocationTableData) return;
@@ -528,6 +546,10 @@ export async function renderProjects(container) {
     const modalAddProf = document.getElementById('modal-add-prof');
 
     document.getElementById('btn-add-professional').onclick = async () => {
+        if (currentProjectData && currentProjectData.locked) {
+            alert('Projeto bloqueado para ajustes.');
+            return;
+        }
         await loadProfessionalsForSelect();
         modalAddProf.style.display = 'flex';
     };
@@ -538,6 +560,10 @@ export async function renderProjects(container) {
     };
 
     document.getElementById('btn-confirm-add-prof').onclick = async () => {
+        if (currentProjectData && currentProjectData.locked) {
+            alert('Projeto bloqueado para ajustes.');
+            return;
+        }
         const profId = document.getElementById('sel-add-prof').value;
         const rateInput = document.getElementById('input-add-prof-rate').value;
         const sellingRate = rateInput ? parseFloat(rateInput) : null;
@@ -605,6 +631,10 @@ export async function renderProjects(container) {
 
 
     async function removeProfessional(allocationId, name) {
+        if (currentProjectData && currentProjectData.locked) {
+            alert('Projeto bloqueado para ajustes.');
+            return;
+        }
         if (confirm(`Tem certeza que deseja remover ${name} deste projeto?`)) {
             try {
                 await api.delete(`/projects/${currentProjectId}/allocations/${allocationId}`);
@@ -643,6 +673,7 @@ export async function renderProjects(container) {
 
             allocationTableData = { weeks, allocations };
             renderAllocationTable(weeks, allocations, highlightAllocationId);
+            applyProjectLockState();
 
             document.getElementById('btn-save-calc').style.display = 'inline-block';
             document.getElementById('btn-export-excel').style.display = 'inline-block';
@@ -897,6 +928,9 @@ export async function renderProjects(container) {
         // Event listeners para botões de ação
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (currentProjectData && currentProjectData.locked) {
+                    return;
+                }
                 const action = btn.dataset.action;
                 const allocationId = parseInt(btn.dataset.allocationId);
                 
@@ -951,6 +985,7 @@ export async function renderProjects(container) {
 
             if (sellingInput && marginCell) {
                 sellingInput.addEventListener('input', () => {
+                    if (currentProjectData && currentProjectData.locked) return;
                     const sellingRate = parseFloat(sellingInput.value) || 0;
                     const cost = parseFloat(sellingInput.dataset.cost) || 0;
                     const marginPercent = sellingRate > 0
@@ -1046,6 +1081,9 @@ export async function renderProjects(container) {
 
             tbody.innerHTML = sortedProjects.map(p => {
                 const startDate = new Date(p.start_date).toLocaleDateString('pt-BR');
+                const isLocked = p.locked === true;
+                const lockIcon = isLocked ? 'lock' : 'lock_open';
+                const lockTitle = isLocked ? 'Desbloquear projeto' : 'Bloquear projeto';
                 return `
                 <tr data-project-id="${p.id}" style="cursor: pointer;">
                     <td>${escapeHtml(p.name)}</td>
@@ -1058,8 +1096,11 @@ export async function renderProjects(container) {
                             <button class="btn btn-sm" data-action="clone" data-project-id="${p.id}" title="Clonar Projeto">
                                 <span class="material-icons" style="font-size: 1.1rem;">content_copy</span>
                             </button>
-                            <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}">Editar</button>
-                            <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}">Excluir</button>
+                            <button class="btn btn-sm" data-action="toggle-lock" data-project-id="${p.id}" data-locked="${isLocked ? 'true' : 'false'}" title="${lockTitle}">
+                                <span class="material-icons" style="font-size: 1.1rem;">${lockIcon}</span>
+                            </button>
+                            <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}" ${isLocked ? 'disabled' : ''}>Editar</button>
+                            <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}" ${isLocked ? 'disabled' : ''}>Excluir</button>
                         </div>
                     </td>
                 </tr>
@@ -1073,7 +1114,9 @@ export async function renderProjects(container) {
                     const action = btn.dataset.action;
                     const projectId = parseInt(btn.dataset.projectId);
 
-                    if (action === 'edit') {
+                    if (action === 'toggle-lock') {
+                        handleToggleProjectLock(projectId, btn);
+                    } else if (action === 'edit') {
                         handleEditProject(projectId, btn);
                     } else if (action === 'clone') {
                         handleCloneProject(projectId, btn);
@@ -1128,6 +1171,7 @@ export async function renderProjects(container) {
             loadOffersSelect();
             // Load allocation table
             loadAllocationTable(id);
+            applyProjectLockState();
 
             // Scroll to details
             document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
@@ -1145,6 +1189,10 @@ export async function renderProjects(container) {
 
         try {
             const project = await api.get(`/projects/${id}`);
+            if (project && project.locked) {
+                alert('Projeto bloqueado para ajustes.');
+                return;
+            }
 
             editingProjectId = id;
             document.getElementById('modal-project-title').textContent = 'Editar Projeto';
@@ -1197,6 +1245,10 @@ export async function renderProjects(container) {
 
     async function handleDeleteProject(id, name, btnElement) {
         if (confirm(`Tem certeza que deseja excluir o projeto "${name}"?`)) {
+            if (currentProjectData && currentProjectData.id === id && currentProjectData.locked) {
+                alert('Projeto bloqueado para ajustes.');
+                return;
+            }
             setLoading(btnElement, true, '');
 
             try {
@@ -1219,7 +1271,80 @@ export async function renderProjects(container) {
         }
     }
 
+    async function handleToggleProjectLock(projectId, btnElement) {
+        const currentlyLocked = btnElement.dataset.locked === 'true';
+        const nextLocked = !currentlyLocked;
+
+        if (!nextLocked) {
+            const ok = confirm(
+                'Atenção: a proposta pode já ter sido apresentada ao cliente.\n\nDeseja desbloquear este projeto?'
+            );
+            if (!ok) return;
+        }
+
+        setLoading(btnElement, true, '');
+        try {
+            await api.patch(`/projects/${projectId}`, { locked: nextLocked });
+
+            // Atualizar lista
+            await loadProjects();
+
+            // Se estiver com o projeto aberto, recarrega e reaplica estado
+            if (currentProjectId === projectId) {
+                const project = await api.get(`/projects/${projectId}`);
+                currentProjectData = project;
+                applyProjectLockState();
+            }
+        } catch (error) {
+            alert('Erro ao alterar bloqueio do projeto:\n\n' + getApiErrorMessage(error));
+            setLoading(btnElement, false);
+        }
+    }
+
     // --- Helper Functions ---
+    function applyProjectLockState() {
+        const locked = currentProjectData && currentProjectData.locked === true;
+
+        const btnApplyOffer = document.getElementById('btn-apply-off');
+        const selOffer = document.getElementById('sel-offer');
+        if (btnApplyOffer) btnApplyOffer.disabled = locked;
+        if (selOffer) selOffer.disabled = locked;
+
+        const btnAddProf = document.getElementById('btn-add-professional');
+        if (btnAddProf) btnAddProf.disabled = locked;
+
+        const btnSaveCalc = document.getElementById('btn-save-calc');
+        if (btnSaveCalc) btnSaveCalc.disabled = locked;
+
+        const allocContainer = document.getElementById('allocation-table-container');
+        if (allocContainer) {
+            allocContainer.querySelectorAll('.alloc-input-selling, .alloc-input-hours').forEach((el) => {
+                el.disabled = locked;
+            });
+            allocContainer.querySelectorAll('button[data-action]').forEach((btn) => {
+                btn.disabled = locked;
+            });
+        }
+
+        // Modal de adicionar profissional
+        const selAddProf = document.getElementById('sel-add-prof');
+        const inputRate = document.getElementById('input-add-prof-rate');
+        const btnConfirmAdd = document.getElementById('btn-confirm-add-prof');
+        if (selAddProf) selAddProf.disabled = locked;
+        if (inputRate) inputRate.disabled = locked;
+        if (btnConfirmAdd) btnConfirmAdd.disabled = locked;
+
+        // Modal de editar projeto (apenas quando editando projeto existente bloqueado)
+        const isEditingExistingProject = Boolean(editingProjectId);
+        const btnSaveProject = document.getElementById('btn-save-project');
+        if (btnSaveProject) btnSaveProject.disabled = locked && isEditingExistingProject;
+        document
+            .querySelectorAll('#modal-project .modal-body input, #modal-project .modal-body select')
+            .forEach((el) => {
+                el.disabled = locked && isEditingExistingProject;
+            });
+    }
+
 
     // Extracts a readable error message from API responses (FastAPI/Pydantic)
     function getApiErrorMessage(error) {
