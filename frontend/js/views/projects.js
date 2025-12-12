@@ -5,7 +5,8 @@ import { escapeHtml } from '../sanitize.js';
 
 
 export async function renderProjects(container) {
-    let currentProjectData = null; // Projeto atualmente exibido nos detalhes
+    let currentProjectData = null; // Projeto atualmente exibido nos detalhes (null = criando novo, não-null = editando/visualizando)
+    let previousProjectData = null; // Projeto que estava sendo visualizado antes de abrir o modal (para restaurar ao cancelar)
     let allocationTableData = null;
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
@@ -261,7 +262,10 @@ export async function renderProjects(container) {
     const modalProject = $('modal-project');
 
     $('btn-new-project').onclick = () => {
-        hideProjectDetails();
+        // Preservar projeto visualizado antes de abrir modal (para restaurar ao cancelar)
+        previousProjectData = currentProjectData;
+        // Limpar dados para garantir que getCurrentProjectId() retorne null ao criar novo
+        hideProjectDetails(true);
         $('modal-project-title').textContent = 'Novo Projeto';
         $('btn-save-project').textContent = 'Criar Projeto';
         clearProjectForm();
@@ -270,22 +274,23 @@ export async function renderProjects(container) {
 
     $('btn-close-modal-project').onclick = () => {
         modalProject.classList.remove('active');
-        clearProjectForm();
+        restoreProjectDetails();
     };
 
     $('btn-cancel-project').onclick = () => {
         modalProject.classList.remove('active');
-        clearProjectForm();
+        restoreProjectDetails();
     };
 
     modalProject.onclick = (e) => {
         if (e.target === modalProject) {
             modalProject.classList.remove('active');
-            clearProjectForm();
+            restoreProjectDetails();
         }
     };
 
     $('btn-save-project').onclick = async () => {
+        // Se currentProjectData não for null, estamos editando; caso contrário, criando novo
         const projectId = getCurrentProjectId();
         if (projectId !== null && checkProjectLocked()) {
             return;
@@ -316,14 +321,15 @@ export async function renderProjects(container) {
                 displayProjectDetails(updatedProject);
 
                 modalProject.classList.remove('active');
-                clearProjectForm();
+                clearProjectForm(true); // Limpar formulário e projeto anterior após salvar
                 loadProjects();
             } else {
                 const project = await api.post('/projects/', {
                     name, start_date, duration_months, tax_rate, margin_rate, allocations: []
                 });
+
                 modalProject.classList.remove('active');
-                clearProjectForm();
+                clearProjectForm(true); // Limpar formulário e projeto anterior após salvar
                 displayProjectDetails(project);
                 loadProjects();
             }
@@ -334,13 +340,17 @@ export async function renderProjects(container) {
         }
     };
 
-    function clearProjectForm() {
+    function clearProjectForm(clearPrevious = false) {
         $('proj-name').value = '';
         $('proj-start').value = '';
         $('proj-duration').value = '3';
         $('proj-tax').value = '11';
         $('proj-margin').value = '40';
+        if (clearPrevious) {
+            previousProjectData = null;
+        }
     }
+
 
     $('btn-apply-off').onclick = async () => {
         if (checkProjectLocked()) return;
@@ -1109,7 +1119,13 @@ export async function renderProjects(container) {
                 return;
             }
 
-            // Definir como projeto atual para simplificar verificação de bloqueio
+            // Preservar projeto visualizado antes de abrir modal (para restaurar ao cancelar)
+            // Só preservar se estiver editando um projeto diferente do que está sendo visualizado
+            if (getCurrentProjectId() !== id) {
+                previousProjectData = currentProjectData;
+            }
+
+            // Atualizar currentProjectData para o projeto sendo editado
             currentProjectData = project;
 
             $('modal-project-title').textContent = 'Editar Projeto';
@@ -1168,7 +1184,17 @@ export async function renderProjects(container) {
 
             try {
                 await api.delete(`/projects/${id}`);
-                // Detalhes já foram escondidos pelo hideProjectDetails() chamado antes
+                
+                // Se o projeto deletado estava sendo exibido, esconder detalhes
+                if (getCurrentProjectId() === id) {
+                    hideProjectDetails();
+                }
+                
+                // Restaurar estado do botão antes de recarregar a lista (que pode remover o elemento)
+                if (btnElement && document.body.contains(btnElement)) {
+                    setLoading(btnElement, false);
+                }
+                
                 loadProjects();
             } catch (error) {
                 alert(`Não foi possível excluir "${name}".\n\n${getApiErrorMessage(error)}`);
@@ -1203,6 +1229,7 @@ export async function renderProjects(container) {
             await showProjectDetails(projectId, null);
         } catch (error) {
             alert('Erro ao alterar bloqueio do projeto:\n\n' + getApiErrorMessage(error));
+        } finally {
             setLoading(btnElement, false);
         }
     }
@@ -1218,11 +1245,26 @@ export async function renderProjects(container) {
     const showElement = (id) => setElementDisplay(id, 'block');
     const hideElement = (id) => setElementDisplay(id, 'none');
 
-    function hideProjectDetails() {
+    function hideProjectDetails(clearData = true) {
         hideElement('proj-details');
         hideElement('price-result');
-        currentProjectData = null;
-        allocationTableData = null;
+        if (clearData) {
+            currentProjectData = null;
+            allocationTableData = null;
+        }
+    }
+
+    // Restaura a UI do projeto após fechar o modal
+    function restoreProjectDetails() {
+        clearProjectForm(); // Limpar apenas o formulário
+        // Verificar previousProjectData primeiro, pois ele contém o projeto que estava sendo visualizado
+        // antes de abrir o modal (para editar outro projeto ou criar novo)
+        if (previousProjectData !== null) {
+            displayProjectDetails(previousProjectData);
+            previousProjectData = null; // Limpar após restaurar (já foi usado)
+        } else if (currentProjectData !== null) {
+            displayProjectDetails(currentProjectData);
+        }
     }
 
     function displayProjectDetails(project) {
@@ -1285,6 +1327,7 @@ export async function renderProjects(container) {
 
     // Verifica se o projeto está bloqueado
     function isProjectLocked() {
+        // Sempre verificar o projeto atual (bloqueio já foi verificado ao abrir modal de edição)
         return currentProjectData?.locked === true;
     }
 
