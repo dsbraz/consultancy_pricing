@@ -50,7 +50,7 @@ class Project(Base):
     duration_months = Column(Integer, nullable=False)
     tax_rate = Column(Float, default=0.0, nullable=False)
     margin_rate = Column(Float, default=0.0, nullable=False)
-    adjustments_enabled = Column(Boolean, default=True, nullable=False)
+    locked = Column(Boolean, default=False, nullable=False)
 
     allocations = relationship("ProjectAllocation", back_populates="project")
 

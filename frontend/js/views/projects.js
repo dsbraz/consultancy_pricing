@@ -285,7 +285,7 @@ export async function renderProjects(container) {
     };
 
     document.getElementById('btn-save-project').onclick = async () => {
-        if (currentProjectData && currentProjectData.adjustments_enabled === false && editingProjectId) {
+        if (currentProjectData && currentProjectData.locked && editingProjectId) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -370,7 +370,7 @@ export async function renderProjects(container) {
     }
 
     document.getElementById('btn-apply-off').onclick = async () => {
-        if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+        if (currentProjectData && currentProjectData.locked) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -407,7 +407,7 @@ export async function renderProjects(container) {
             alert('Nenhum projeto selecionado.');
             return;
         }
-        if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+        if (currentProjectData && currentProjectData.locked) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -546,7 +546,7 @@ export async function renderProjects(container) {
     const modalAddProf = document.getElementById('modal-add-prof');
 
     document.getElementById('btn-add-professional').onclick = async () => {
-        if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+        if (currentProjectData && currentProjectData.locked) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -560,7 +560,7 @@ export async function renderProjects(container) {
     };
 
     document.getElementById('btn-confirm-add-prof').onclick = async () => {
-        if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+        if (currentProjectData && currentProjectData.locked) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -631,7 +631,7 @@ export async function renderProjects(container) {
 
 
     async function removeProfessional(allocationId, name) {
-        if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+        if (currentProjectData && currentProjectData.locked) {
             alert('Projeto bloqueado para ajustes.');
             return;
         }
@@ -928,7 +928,7 @@ export async function renderProjects(container) {
         // Event listeners para botões de ação
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (currentProjectData && currentProjectData.adjustments_enabled === false) {
+                if (currentProjectData && currentProjectData.locked) {
                     return;
                 }
                 const action = btn.dataset.action;
@@ -985,7 +985,7 @@ export async function renderProjects(container) {
 
             if (sellingInput && marginCell) {
                 sellingInput.addEventListener('input', () => {
-                    if (currentProjectData && currentProjectData.adjustments_enabled === false) return;
+                    if (currentProjectData && currentProjectData.locked) return;
                     const sellingRate = parseFloat(sellingInput.value) || 0;
                     const cost = parseFloat(sellingInput.dataset.cost) || 0;
                     const marginPercent = sellingRate > 0
@@ -1081,9 +1081,9 @@ export async function renderProjects(container) {
 
             tbody.innerHTML = sortedProjects.map(p => {
                 const startDate = new Date(p.start_date).toLocaleDateString('pt-BR');
-                const unlocked = p.adjustments_enabled !== false;
-                const lockIcon = unlocked ? 'lock_open' : 'lock';
-                const lockTitle = unlocked ? 'Bloquear projeto' : 'Desbloquear projeto';
+                const isLocked = p.locked === true;
+                const lockIcon = isLocked ? 'lock' : 'lock_open';
+                const lockTitle = isLocked ? 'Desbloquear projeto' : 'Bloquear projeto';
                 return `
                 <tr data-project-id="${p.id}" style="cursor: pointer;">
                     <td>${escapeHtml(p.name)}</td>
@@ -1096,11 +1096,11 @@ export async function renderProjects(container) {
                             <button class="btn btn-sm" data-action="clone" data-project-id="${p.id}" title="Clonar Projeto">
                                 <span class="material-icons" style="font-size: 1.1rem;">content_copy</span>
                             </button>
-                            <button class="btn btn-sm" data-action="toggle-lock" data-project-id="${p.id}" data-adjustments-enabled="${unlocked ? 'true' : 'false'}" title="${lockTitle}">
+                            <button class="btn btn-sm" data-action="toggle-lock" data-project-id="${p.id}" data-locked="${isLocked ? 'true' : 'false'}" title="${lockTitle}">
                                 <span class="material-icons" style="font-size: 1.1rem;">${lockIcon}</span>
                             </button>
-                            <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}" ${unlocked ? '' : 'disabled'}>Editar</button>
-                            <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}" ${unlocked ? '' : 'disabled'}>Excluir</button>
+                            <button class="btn btn-sm" data-action="edit" data-project-id="${p.id}" ${isLocked ? 'disabled' : ''}>Editar</button>
+                            <button class="btn btn-sm btn-danger" data-action="delete" data-project-id="${p.id}" data-project-name="${escapeHtml(p.name)}" ${isLocked ? 'disabled' : ''}>Excluir</button>
                         </div>
                     </td>
                 </tr>
@@ -1189,7 +1189,7 @@ export async function renderProjects(container) {
 
         try {
             const project = await api.get(`/projects/${id}`);
-            if (project && project.adjustments_enabled === false) {
+            if (project && project.locked) {
                 alert('Projeto bloqueado para ajustes.');
                 return;
             }
@@ -1245,7 +1245,7 @@ export async function renderProjects(container) {
 
     async function handleDeleteProject(id, name, btnElement) {
         if (confirm(`Tem certeza que deseja excluir o projeto "${name}"?`)) {
-            if (currentProjectData && currentProjectData.id === id && currentProjectData.adjustments_enabled === false) {
+            if (currentProjectData && currentProjectData.id === id && currentProjectData.locked) {
                 alert('Projeto bloqueado para ajustes.');
                 return;
             }
@@ -1272,10 +1272,10 @@ export async function renderProjects(container) {
     }
 
     async function handleToggleProjectLock(projectId, btnElement) {
-        const currentlyEnabled = btnElement.dataset.adjustmentsEnabled === 'true';
-        const nextEnabled = !currentlyEnabled;
+        const currentlyLocked = btnElement.dataset.locked === 'true';
+        const nextLocked = !currentlyLocked;
 
-        if (nextEnabled) {
+        if (!nextLocked) {
             const ok = confirm(
                 'Atenção: a proposta pode já ter sido apresentada ao cliente.\n\nDeseja desbloquear este projeto?'
             );
@@ -1284,7 +1284,7 @@ export async function renderProjects(container) {
 
         setLoading(btnElement, true, '');
         try {
-            await api.patch(`/projects/${projectId}`, { adjustments_enabled: nextEnabled });
+            await api.patch(`/projects/${projectId}`, { locked: nextLocked });
 
             // Atualizar lista
             await loadProjects();
@@ -1303,7 +1303,7 @@ export async function renderProjects(container) {
 
     // --- Helper Functions ---
     function applyProjectLockState() {
-        const locked = currentProjectData && currentProjectData.adjustments_enabled === false;
+        const locked = currentProjectData && currentProjectData.locked === true;
 
         const btnApplyOffer = document.getElementById('btn-apply-off');
         const selOffer = document.getElementById('sel-offer');

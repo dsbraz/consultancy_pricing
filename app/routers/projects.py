@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 # Helper functions to reduce code duplication
-def _ensure_project_adjustments_enabled(project: models.Project) -> None:
-    if project.adjustments_enabled is False:
+def _ensure_project_not_locked(project: models.Project) -> None:
+    if project.locked:
         raise HTTPException(status_code=403, detail="Projeto bloqueado para ajustes")
 
 
@@ -327,9 +327,9 @@ def update_project(
 
     try:
         update_data = project.model_dump(exclude_unset=True)
-        # Se o projeto estiver bloqueado, permitir apenas toggle de adjustments_enabled
-        if db_project.adjustments_enabled is False:
-            allowed = {"adjustments_enabled"}
+        # Se o projeto estiver bloqueado, permitir apenas toggle de locked
+        if db_project.locked:
+            allowed = {"locked"}
             if any(k not in allowed for k in update_data.keys()):
                 raise HTTPException(
                     status_code=403, detail="Projeto bloqueado para ajustes"
@@ -367,7 +367,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     """Delete a project and its allocations"""
     logger.info(f"Deleting project: id={project_id}")
     db_project = _get_project_or_404(db, project_id)
-    _ensure_project_adjustments_enabled(db_project)
+    _ensure_project_not_locked(db_project)
 
     try:
         # Delete allocations and their weekly allocations individually
@@ -431,7 +431,7 @@ def apply_offer_to_project(
     )
 
     project = _get_project_or_404(db, project_id)
-    _ensure_project_adjustments_enabled(project)
+    _ensure_project_not_locked(project)
     offer = _get_offer_or_404(db, request.offer_id)
     allocation_service = ProjectAllocationService(db)
     weeks = allocation_service.get_project_weeks(project)
@@ -550,7 +550,7 @@ def update_allocations(
         ]
     """
     project = _get_project_or_404(db, project_id)
-    _ensure_project_adjustments_enabled(project)
+    _ensure_project_not_locked(project)
 
     updated_count = 0
     for update in updates:
@@ -602,7 +602,7 @@ def add_professional_to_project(
     )
 
     project = _get_project_or_404(db, project_id)
-    _ensure_project_adjustments_enabled(project)
+    _ensure_project_not_locked(project)
     professional = _get_professional_or_404(db, professional_id)
     allocation_service = ProjectAllocationService(db)
 
@@ -655,7 +655,7 @@ def remove_professional_from_project(
         f"Removing professional from project: project_id={project_id}, allocation_id={allocation_id}"
     )
     project = _get_project_or_404(db, project_id)
-    _ensure_project_adjustments_enabled(project)
+    _ensure_project_not_locked(project)
     allocation = _get_allocation_or_404(db, project_id, allocation_id)
     professional_name = allocation.professional.name
 
