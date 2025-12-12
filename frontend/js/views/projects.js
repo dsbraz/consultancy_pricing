@@ -1,13 +1,11 @@
 import { api } from '../api.js';
-import { normalizeText, formatCurrency } from '../utils.js';
+import { normalizeText, formatCurrency, $ } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
 
 export async function renderProjects(container) {
-    let currentProjectId = null;
-    let currentProjectData = null;
-    let editingProjectId = null;
+    let currentProjectData = null; // Projeto atualmente exibido nos detalhes
     let allocationTableData = null;
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
@@ -15,6 +13,9 @@ export async function renderProjects(container) {
     let allocationSortDirection = 'asc';
     let currentPage = 1;
     let searchQuery = '';
+
+    // Helper para obter ID do projeto atual (derivado de currentProjectData)
+    const getCurrentProjectId = () => currentProjectData?.id ?? null;
 
     container.innerHTML = `
     <div class="card">
@@ -228,21 +229,21 @@ export async function renderProjects(container) {
     });
 
     // Event listeners para paginação
-    document.getElementById('btn-prev-page').addEventListener('click', () => {
+    $('btn-prev-page').addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
             loadProjects();
         }
     });
 
-    document.getElementById('btn-next-page').addEventListener('click', () => {
+    $('btn-next-page').addEventListener('click', () => {
         currentPage++;
         loadProjects();
     });
 
     // Event listener para busca
     let searchTimeout = null;
-    const searchInput = document.getElementById('search-projects');
+    const searchInput = $('search-projects');
     searchInput.addEventListener('input', (e) => {
         // Limpar timeout anterior
         if (searchTimeout) {
@@ -257,22 +258,22 @@ export async function renderProjects(container) {
         }, 300);
     });
 
-    const modalProject = document.getElementById('modal-project');
+    const modalProject = $('modal-project');
 
-    document.getElementById('btn-new-project').onclick = () => {
-        editingProjectId = null;
-        document.getElementById('modal-project-title').textContent = 'Novo Projeto';
-        document.getElementById('btn-save-project').textContent = 'Criar Projeto';
+    $('btn-new-project').onclick = () => {
+        hideProjectDetails();
+        $('modal-project-title').textContent = 'Novo Projeto';
+        $('btn-save-project').textContent = 'Criar Projeto';
         clearProjectForm();
         modalProject.classList.add('active');
     };
 
-    document.getElementById('btn-close-modal-project').onclick = () => {
+    $('btn-close-modal-project').onclick = () => {
         modalProject.classList.remove('active');
         clearProjectForm();
     };
 
-    document.getElementById('btn-cancel-project').onclick = () => {
+    $('btn-cancel-project').onclick = () => {
         modalProject.classList.remove('active');
         clearProjectForm();
     };
@@ -284,54 +285,36 @@ export async function renderProjects(container) {
         }
     };
 
-    document.getElementById('btn-save-project').onclick = async () => {
-        if (currentProjectData && currentProjectData.locked && editingProjectId) {
-            alert('Projeto bloqueado para ajustes.');
+    $('btn-save-project').onclick = async () => {
+        const projectId = getCurrentProjectId();
+        if (projectId !== null && checkProjectLocked()) {
             return;
         }
-        const name = normalizeText(document.getElementById('proj-name').value);
-        const start_date = document.getElementById('proj-start').value;
-        const duration_months = parseInt(document.getElementById('proj-duration').value);
-        const tax_rate = parseFloat(document.getElementById('proj-tax').value);
-        const margin_rate = parseFloat(document.getElementById('proj-margin').value);
+        const name = normalizeText($('proj-name').value);
+        const start_date = $('proj-start').value;
+        const duration_months = parseInt($('proj-duration').value);
+        const tax_rate = parseFloat($('proj-tax').value);
+        const margin_rate = parseFloat($('proj-margin').value);
 
         if (!name || !start_date) {
             alert('Por favor, preencha todos os campos obrigatórios (Nome e Data de Início).');
             return;
         }
 
-        const btn = document.getElementById('btn-save-project');
+        const btn = $('btn-save-project');
         setLoading(btn, true, 'Salvando...');
 
         try {
-            if (editingProjectId) {
-                await api.patch(`/projects/${editingProjectId}`, {
-                    id: parseInt(editingProjectId),
+            if (projectId !== null) {
+                await api.patch(`/projects/${projectId}`, {
+                    id: projectId,
                     name, start_date, duration_months, tax_rate, margin_rate
                 });
 
-                if (currentProjectId === editingProjectId) {
-                    // Check if duration or start_date changed (these affect weekly allocations)
-                    const durationChanged = currentProjectData && 
-                        currentProjectData.duration_months !== duration_months;
-                    const startDateChanged = currentProjectData && 
-                        currentProjectData.start_date !== start_date;
-                    
-                    // Update local state to reflect changes immediately
-                    currentProjectData = {
-                        ...currentProjectData,
-                        name,
-                        start_date,
-                        duration_months,
-                        tax_rate,
-                        margin_rate
-                    };
-                    document.getElementById('proj-title-display').textContent = `Projeto: ${name}`;
-                    // Reload allocation table (always reload to ensure consistency)
-                    loadAllocationTable(currentProjectId);
-                }
+                // Recarregar projeto completo do backend e atualizar detalhes
+                const updatedProject = await api.get(`/projects/${projectId}`);
+                displayProjectDetails(updatedProject);
 
-                editingProjectId = null;
                 modalProject.classList.remove('active');
                 clearProjectForm();
                 loadProjects();
@@ -352,39 +335,30 @@ export async function renderProjects(container) {
     };
 
     function clearProjectForm() {
-        document.getElementById('proj-name').value = '';
-        document.getElementById('proj-start').value = '';
-        document.getElementById('proj-duration').value = '3';
-        document.getElementById('proj-tax').value = '11';
-        document.getElementById('proj-margin').value = '40';
+        $('proj-name').value = '';
+        $('proj-start').value = '';
+        $('proj-duration').value = '3';
+        $('proj-tax').value = '11';
+        $('proj-margin').value = '40';
     }
 
-    document.getElementById('btn-apply-off').onclick = async () => {
-        if (currentProjectData && currentProjectData.locked) {
-            alert('Projeto bloqueado para ajustes.');
-            return;
-        }
-        const offId = document.getElementById('sel-offer').value;
-        if (!currentProjectId || !offId) return;
+    $('btn-apply-off').onclick = async () => {
+        if (checkProjectLocked()) return;
+        const projectId = getCurrentProjectId();
+        const offId = $('sel-offer').value;
+        if (!projectId || !offId) return;
 
-        const btn = document.getElementById('btn-apply-off');
+        const btn = $('btn-apply-off');
         setLoading(btn, true, 'Aplicando...');
 
         try {
-            await api.post(`/projects/${currentProjectId}/offers`, {
+            await api.post(`/projects/${projectId}/offers`, {
                 offer_id: parseInt(offId)
             });
 
-            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Aplicado!';
-            btn.classList.add('btn-success');
-
-            setTimeout(() => {
-                setLoading(btn, false);
-                btn.classList.remove('btn-success');
-            }, 2000);
-
+            showSuccessFeedback(btn, 'Aplicado!');
             // Allocations changed; reload from API
-            loadAllocationTable(currentProjectId);
+            loadAllocationTable(projectId);
         } catch (error) {
             alert('Erro ao aplicar oferta:\n\n' + getApiErrorMessage(error));
             setLoading(btn, false);
@@ -392,15 +366,16 @@ export async function renderProjects(container) {
     };
 
     // Save & Calculate
-    document.getElementById('btn-save-calc').onclick = async () => {
-        if (!currentProjectId) {
+    $('btn-save-calc').onclick = async () => {
+        const projectId = getCurrentProjectId();
+        if (!projectId) {
             alert('Nenhum projeto selecionado.');
             return;
         }
         if (!allocationTableData) return;
 
-        const btn = document.getElementById('btn-save-calc');
-        const isLocked = currentProjectData && currentProjectData.locked;
+        const btn = $('btn-save-calc');
+        const isLocked = isProjectLocked();
         setLoading(btn, true, isLocked ? 'Calculando...' : 'Salvando...');
 
         const updates = [];
@@ -431,49 +406,41 @@ export async function renderProjects(container) {
             // Se bloqueado, apenas calcular preço sem salvar alocações
             if (!isLocked) {
                 // Atualização parcial de alocações usa PATCH no backend
-                await api.patch(`/projects/${currentProjectId}/allocations`, updates);
+                await api.patch(`/projects/${projectId}/allocations`, updates);
             }
-            const res = await api.get(`/projects/${currentProjectId}/pricing`);
+            const res = await api.get(`/projects/${projectId}/pricing`);
 
-            document.getElementById('res-cost').textContent = formatCurrency(res.total_cost);
-            document.getElementById('res-selling').textContent = formatCurrency(res.total_selling);
-            document.getElementById('res-margin').textContent = formatCurrency(res.total_margin);
-            document.getElementById('res-tax').textContent = formatCurrency(res.total_tax);
-            document.getElementById('res-price').textContent = formatCurrency(res.final_price);
-            document.getElementById('res-final-margin').textContent = res.final_margin_percent.toFixed(2) + '%';
+            $('res-cost').textContent = formatCurrency(res.total_cost);
+            $('res-selling').textContent = formatCurrency(res.total_selling);
+            $('res-margin').textContent = formatCurrency(res.total_margin);
+            $('res-tax').textContent = formatCurrency(res.total_tax);
+            $('res-price').textContent = formatCurrency(res.final_price);
+            $('res-final-margin').textContent = res.final_margin_percent.toFixed(2) + '%';
 
-            const marginCard = document.getElementById('res-final-margin').parentElement;
+            const marginCard = $('res-final-margin').parentElement;
             const finalMargin = res.final_margin_percent.toFixed(2);
 
             // Default to 0 if not available
-            const configuredMargin = (currentProjectData && currentProjectData.margin_rate !== undefined)
-                ? currentProjectData.margin_rate.toFixed(2)
-                : '0.00';
+            const configuredMargin = currentProjectData?.margin_rate?.toFixed(2) ?? '0.00';
 
             if (parseFloat(finalMargin) >= parseFloat(configuredMargin)) {
                 marginCard.style.background = 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)';
                 marginCard.style.borderColor = '#10B981';
-                document.getElementById('res-final-margin').style.color = '#059669';
+                $('res-final-margin').style.color = '#059669';
                 marginCard.querySelector('.material-icons').style.color = '#059669';
                 marginCard.querySelector('span:not(.material-icons)').style.color = '#065F46';
             } else {
                 marginCard.style.background = 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)';
                 marginCard.style.borderColor = '#EF4444';
-                document.getElementById('res-final-margin').style.color = '#DC2626';
+                $('res-final-margin').style.color = '#DC2626';
                 marginCard.querySelector('.material-icons').style.color = '#DC2626';
                 marginCard.querySelector('span:not(.material-icons)').style.color = '#991B1B';
             }
 
-            document.getElementById('price-result').style.display = 'block';
+            showElement('price-result');
 
             // Success feedback
-            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Salvo!';
-            btn.classList.add('btn-success');
-
-            setTimeout(() => {
-                setLoading(btn, false);
-                btn.classList.remove('btn-success');
-            }, 2000);
+            showSuccessFeedback(btn, 'Salvo!');
 
         } catch (error) {
             alert('Erro ao salvar/calcular:\n\n' + getApiErrorMessage(error));
@@ -481,81 +448,58 @@ export async function renderProjects(container) {
         }
     };
 
-    document.getElementById('btn-export-excel').onclick = async () => {
-        if (!currentProjectId) {
+    // Função consolidada para exportação
+    async function handleExport(format, buttonId) {
+        const projectId = getCurrentProjectId();
+        if (!projectId) {
             alert('Nenhum projeto selecionado.');
             return;
         }
 
-        const btn = document.getElementById('btn-export-excel');
-        setLoading(btn, true, 'Exportando...');
-
-        try {
-            await api.downloadBlob(`/projects/${currentProjectId}/export?format=xlsx`);
-
-            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Exportado!';
-            btn.classList.add('btn-success');
-
-            setTimeout(() => {
-                setLoading(btn, false);
-                btn.classList.remove('btn-success');
-            }, 2000);
-
-        } catch (error) {
-            alert('Erro ao exportar:\n\n' + getApiErrorMessage(error));
-            setLoading(btn, false);
-        }
-    };
-
-    document.getElementById('btn-export-png').onclick = async () => {
-        if (!currentProjectId) {
-            alert('Nenhum projeto selecionado.');
+        const btn = $(buttonId);
+        if (!btn) {
             return;
         }
 
-        const btn = document.getElementById('btn-export-png');
         setLoading(btn, true, 'Exportando...');
 
         try {
-            await api.downloadBlob(`/projects/${currentProjectId}/export?format=png`);
-
-            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Exportado!';
-            btn.classList.add('btn-success');
-
-            setTimeout(() => {
-                setLoading(btn, false);
-                btn.classList.remove('btn-success');
-            }, 2000);
-
+            await api.downloadBlob(`/projects/${projectId}/export?format=${format}`);
+            showSuccessFeedback(btn, 'Exportado!');
         } catch (error) {
-            alert('Erro ao exportar PNG:\n\n' + getApiErrorMessage(error));
+            alert(`Erro ao exportar ${format.toUpperCase()}:\n\n` + getApiErrorMessage(error));
             setLoading(btn, false);
         }
-    };
+    }
 
-    const modalAddProf = document.getElementById('modal-add-prof');
+    // Event listeners para exportação (com verificação de existência)
+    const btnExportExcel = $('btn-export-excel');
+    const btnExportPng = $('btn-export-png');
+    if (btnExportExcel) {
+        btnExportExcel.onclick = () => handleExport('xlsx', 'btn-export-excel');
+    }
+    if (btnExportPng) {
+        btnExportPng.onclick = () => handleExport('png', 'btn-export-png');
+    }
 
-    document.getElementById('btn-add-professional').onclick = async () => {
-        if (currentProjectData && currentProjectData.locked) {
-            alert('Projeto bloqueado para ajustes.');
-            return;
-        }
+    const modalAddProf = $('modal-add-prof');
+
+    $('btn-add-professional').onclick = async () => {
+        if (checkProjectLocked()) return;
         await loadProfessionalsForSelect();
         modalAddProf.style.display = 'flex';
     };
 
-    document.getElementById('btn-cancel-add-prof').onclick = () => {
+    $('btn-cancel-add-prof').onclick = () => {
         modalAddProf.style.display = 'none';
-        document.getElementById('input-add-prof-rate').value = '';
+        $('input-add-prof-rate').value = '';
     };
 
-    document.getElementById('btn-confirm-add-prof').onclick = async () => {
-        if (currentProjectData && currentProjectData.locked) {
-            alert('Projeto bloqueado para ajustes.');
-            return;
-        }
-        const profId = document.getElementById('sel-add-prof').value;
-        const rateInput = document.getElementById('input-add-prof-rate').value;
+    $('btn-confirm-add-prof').onclick = async () => {
+        if (checkProjectLocked()) return;
+        const projectId = getCurrentProjectId();
+        const profId = $('sel-add-prof').value;
+        const rateInput = $('input-add-prof-rate').value;
         const sellingRate = rateInput ? parseFloat(rateInput) : null;
 
         if (!profId) {
@@ -563,11 +507,11 @@ export async function renderProjects(container) {
             return;
         }
 
-        const btn = document.getElementById('btn-confirm-add-prof');
+        const btn = $('btn-confirm-add-prof');
         setLoading(btn, true, 'Adicionando...');
 
         try {
-            let url = `/projects/${currentProjectId}/allocations/?professional_id=${profId}`;
+            let url = `/projects/${projectId}/allocations/?professional_id=${profId}`;
             if (sellingRate !== null) {
                 url += `&selling_hourly_rate=${sellingRate}`;
             }
@@ -575,16 +519,12 @@ export async function renderProjects(container) {
             const response = await api.post(url, {});
             const allocationId = response.allocation_id;
 
-            btn.innerHTML = '<span class="material-icons" style="font-size: 1.25rem;">check</span> Adicionado!';
-            btn.classList.add('btn-success');
-
+            showSuccessFeedback(btn, 'Adicionado!', 1500);
             setTimeout(() => {
                 modalAddProf.style.display = 'none';
-                document.getElementById('input-add-prof-rate').value = '';
+                $('input-add-prof-rate').value = '';
                 // Reload allocations from API since we just added a new professional
-                loadAllocationTable(currentProjectId, allocationId);
-                setLoading(btn, false);
-                btn.classList.remove('btn-success');
+                loadAllocationTable(projectId, allocationId);
             }, 1500);
 
         } catch (error) {
@@ -594,7 +534,7 @@ export async function renderProjects(container) {
     };
 
     async function loadProfessionalsForSelect() {
-        const sel = document.getElementById('sel-add-prof');
+        const sel = $('sel-add-prof');
         sel.innerHTML = '<option value="">Carregando...</option>';
 
         try {
@@ -607,7 +547,7 @@ export async function renderProjects(container) {
             sel.onchange = () => {
                 const selectedOption = sel.options[sel.selectedIndex];
                 const cost = selectedOption.getAttribute('data-cost');
-                const disp = document.getElementById('disp-prof-cost');
+                const disp = $('disp-prof-cost');
                 if (cost) {
                     disp.textContent = `Custo: ${formatCurrency(parseFloat(cost))}/h`;
                 } else {
@@ -621,15 +561,13 @@ export async function renderProjects(container) {
 
 
     async function removeProfessional(allocationId, name) {
-        if (currentProjectData && currentProjectData.locked) {
-            alert('Projeto bloqueado para ajustes.');
-            return;
-        }
+        if (checkProjectLocked()) return;
+        const projectId = getCurrentProjectId();
         if (confirm(`Tem certeza que deseja remover ${name} deste projeto?`)) {
             try {
-                await api.delete(`/projects/${currentProjectId}/allocations/${allocationId}`);
+                await api.delete(`/projects/${projectId}/allocations/${allocationId}`);
                 // Allocations changed; reload from API
-                loadAllocationTable(currentProjectId);
+                loadAllocationTable(projectId);
             } catch (error) {
                 alert('Erro ao remover profissional:\n\n' + getApiErrorMessage(error));
             }
@@ -639,11 +577,11 @@ export async function renderProjects(container) {
     async function loadOffersSelect() {
         try {
             const list = await api.get('/offers/');
-            const sel = document.getElementById('sel-offer');
+            const sel = $('sel-offer');
             sel.innerHTML = '<option value="">Selecione uma oferta</option>' +
                 list.map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('');
         } catch (e) {
-            console.error("Erro ao carregar ofertas para select", e);
+            // Erro silencioso ao carregar ofertas
         }
     }
 
@@ -657,7 +595,7 @@ export async function renderProjects(container) {
             const allocations = pData.allocations;
             
             // Update currentProjectData to keep it in sync
-            if (currentProjectId === projectId) {
+            if (getCurrentProjectId() === projectId) {
                 currentProjectData = pData;
             }
 
@@ -665,12 +603,11 @@ export async function renderProjects(container) {
             renderAllocationTable(weeks, allocations, highlightAllocationId);
             applyProjectLockState();
 
-            document.getElementById('btn-save-calc').style.display = 'inline-block';
-            document.getElementById('btn-export-excel').style.display = 'inline-block';
-            document.getElementById('btn-export-png').style.display = 'inline-block';
+            setElementDisplay('btn-save-calc', 'inline-block');
+            setElementDisplay('btn-export-excel', 'inline-block');
+            setElementDisplay('btn-export-png', 'inline-block');
         } catch (error) {
-            console.error('Erro ao carregar tabela de alocação:', error);
-            document.getElementById('allocation-table-container').innerHTML =
+            $('allocation-table-container').innerHTML =
                 '<p style="color: red;">Erro ao carregar timeline. Tente novamente.</p>';
         }
     }
@@ -698,18 +635,23 @@ export async function renderProjects(container) {
         return cost / divisor;
     }
 
-    function updateAllocationHeaderStyles() {
-        const container = document.getElementById('allocation-table-container');
+    // Função genérica para atualizar estilos de header ordenável
+    function updateHeaderStyles(container, sortColumn, sortDirection) {
         if (!container) return;
-        
         container.querySelectorAll('th.sortable').forEach((th) => {
             th.classList.remove('sorted-asc', 'sorted-desc');
-            if (th.dataset.column === allocationSortColumn) {
-                th.classList.add(
-                    allocationSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc'
-                );
+            if (th.dataset.column === sortColumn) {
+                th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
             }
         });
+    }
+
+    function updateAllocationHeaderStyles() {
+        updateHeaderStyles(
+            $('allocation-table-container'),
+            allocationSortColumn,
+            allocationSortDirection
+        );
     }
 
     function sortAllocationData(allocations) {
@@ -734,12 +676,8 @@ export async function renderProjects(container) {
                     valB = b.selling_hourly_rate;
                     break;
                 case 'margin_percent':
-                    valA = a.selling_hourly_rate > 0
-                        ? ((a.selling_hourly_rate - a.cost_hourly_rate) / a.selling_hourly_rate * 100)
-                        : 0;
-                    valB = b.selling_hourly_rate > 0
-                        ? ((b.selling_hourly_rate - b.cost_hourly_rate) / b.selling_hourly_rate * 100)
-                        : 0;
+                    valA = parseFloat(calculateMarginPercent(a.selling_hourly_rate, a.cost_hourly_rate));
+                    valB = parseFloat(calculateMarginPercent(b.selling_hourly_rate, b.cost_hourly_rate));
                     break;
                 default:
                     return 0;
@@ -758,7 +696,7 @@ export async function renderProjects(container) {
     }
 
     function renderAllocationTable(weeks, allocations, highlightAllocationId = null) {
-        const container = document.getElementById('allocation-table-container');
+        const container = $('allocation-table-container');
 
         if (!allocations || allocations.length === 0) {
             container.innerHTML = '<p style="color: #6b7280;">Nenhuma alocação ainda.</p>';
@@ -816,9 +754,7 @@ export async function renderProjects(container) {
                     style="width: 100%; padding: 0.25rem; text-align: center; border: 1px solid #d1d5db; border-radius: 0.25rem;">
             </td>`;
 
-            const marginPercent = alloc.selling_hourly_rate > 0
-                ? ((alloc.selling_hourly_rate - alloc.cost_hourly_rate) / alloc.selling_hourly_rate * 100).toFixed(2)
-                : '0.00';
+            const marginPercent = calculateMarginPercent(alloc.selling_hourly_rate, alloc.cost_hourly_rate);
             html += `<td class="margin-cell" data-margin="${marginPercent}" style="padding: 0.5rem; border: 1px solid #e5e7eb; text-align: center; font-weight: 600;">${marginPercent}%</td>`;
 
             let totalHours = 0;
@@ -885,9 +821,13 @@ export async function renderProjects(container) {
         // Atualizar estilos dos headers
         updateAllocationHeaderStyles();
 
-        const totalHoursContainer = document.getElementById('project-total-hours');
+        const totalHoursContainer = $('project-total-hours');
         if (totalHoursContainer) {
-            totalHoursContainer.style.display = (allocations && allocations.length > 0) ? 'block' : 'none';
+            if (allocations && allocations.length > 0) {
+                showElement('project-total-hours');
+            } else {
+                hideElement('project-total-hours');
+            }
         }
 
         const updateProjectTotalHours = () => {
@@ -896,7 +836,7 @@ export async function renderProjects(container) {
             allHoursInputs.forEach(input => {
                 total += parseFloat(input.value) || 0;
             });
-            const display = document.getElementById('val-project-total-hours');
+            const display = $('val-project-total-hours');
             if (display) {
                 display.textContent = Math.round(total);
             }
@@ -904,7 +844,7 @@ export async function renderProjects(container) {
 
         updateProjectTotalHours();
 
-        if (currentProjectData && currentProjectData.margin_rate !== undefined) {
+        if (currentProjectData?.margin_rate !== undefined) {
             const rows = container.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 const marginCell = row.querySelector('.margin-cell');
@@ -918,9 +858,7 @@ export async function renderProjects(container) {
         // Event listeners para botões de ação
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (currentProjectData && currentProjectData.locked) {
-                    return;
-                }
+                if (isProjectLocked()) return;
                 const action = btn.dataset.action;
                 const allocationId = parseInt(btn.dataset.allocationId);
                 
@@ -929,13 +867,13 @@ export async function renderProjects(container) {
                     removeProfessional(allocationId, professionalName);
                 } else if (action === 'recalculate-rate') {
                     // Recalcular preço de venda baseado na margem do projeto
-                    if (!currentProjectData || currentProjectData.margin_rate === undefined) {
+                    const marginRate = currentProjectData?.margin_rate;
+                    if (!marginRate) {
                         alert('Margem do projeto não configurada.');
                         return;
                     }
                     
                     const cost = parseFloat(btn.dataset.cost);
-                    const marginRate = currentProjectData.margin_rate;
                     const newSellingRate = calculateSellingRateFromMargin(cost, marginRate);
                     
                     // Encontrar o input de selling rate correspondente e atualizar
@@ -975,16 +913,14 @@ export async function renderProjects(container) {
 
             if (sellingInput && marginCell) {
                 sellingInput.addEventListener('input', () => {
-                    if (currentProjectData && currentProjectData.locked) return;
+                    if (isProjectLocked()) return;
                     const sellingRate = parseFloat(sellingInput.value) || 0;
                     const cost = parseFloat(sellingInput.dataset.cost) || 0;
-                    const marginPercent = sellingRate > 0
-                        ? ((sellingRate - cost) / sellingRate * 100).toFixed(2)
-                        : '0.00';
+                    const marginPercent = calculateMarginPercent(sellingRate, cost);
                     marginCell.textContent = `${marginPercent}%`;
                     marginCell.dataset.margin = marginPercent;
 
-                    if (currentProjectData && currentProjectData.margin_rate !== undefined) {
+                    if (currentProjectData?.margin_rate !== undefined) {
                         applyMarginColor(marginCell, marginPercent, currentProjectData.margin_rate);
                     }
                 });
@@ -1032,15 +968,8 @@ export async function renderProjects(container) {
         indicator.textContent = `Página ${page} de ${totalPages || 1}`;
     }
 
-    function updateHeaderStyles() {
-        container.querySelectorAll('th.sortable').forEach((th) => {
-            th.classList.remove('sorted-asc', 'sorted-desc');
-            if (th.dataset.column === currentSortBy) {
-                th.classList.add(
-                    currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc'
-                );
-            }
-        });
+    function updateProjectsHeaderStyles() {
+        updateHeaderStyles(container, currentSortBy, currentSortDirection);
     }
 
     async function loadProjects() {
@@ -1063,7 +992,7 @@ export async function renderProjects(container) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 1rem; color: #6b7280;">${message}</td></tr>`;
                 const totalPages = Math.ceil(total / 10);
                 updatePaginationControls(currentPage, totalPages);
-                updateHeaderStyles();
+                updateProjectsHeaderStyles();
                 return;
             }
 
@@ -1113,6 +1042,9 @@ export async function renderProjects(container) {
                     } else if (action === 'delete') {
                         const projectName = btn.dataset.projectName;
                         handleDeleteProject(projectId, projectName, btn);
+                    } else {
+                        // Para outras ações ou cliques em botões sem ação específica, exibir detalhes
+                        showProjectDetails(projectId, btn);
                     }
                 });
             });
@@ -1126,33 +1058,33 @@ export async function renderProjects(container) {
                     }
                     const projectId = parseInt(row.dataset.projectId);
                     // Passar null como elemento para não mostrar loading
-                    handleViewProject(projectId, null);
+                    showProjectDetails(projectId, null);
                 });
             });
             
             // Atualizar controles de paginação e estilos dos headers
             const totalPages = Math.ceil(total / 10);
             updatePaginationControls(currentPage, totalPages);
-            updateHeaderStyles();
+            updateProjectsHeaderStyles();
         } catch (error) {
             const tbody = document.querySelector('#projects-table tbody');
             if (tbody) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem; color:red;">Erro ao carregar projetos.</td></tr>';
             }
-            console.error(error);
         }
     };
 
     // --- Scoped Action Handlers (No Window Globals) ---
 
-    async function handleViewProject(id, btnElement) {
+    // Helper para exibir detalhes do projeto (reutilizável)
+    async function showProjectDetails(projectId, btnElement = null) {
         // Só mostrar loading se for um botão
         if (btnElement) {
             setLoading(btnElement, true, '...');
         }
 
         try {
-            const project = await api.get(`/projects/${id}`);
+            const project = await api.get(`/projects/${projectId}`);
             displayProjectDetails(project);
         } catch (e) {
             alert('Erro ao visualizar projeto.');
@@ -1161,6 +1093,10 @@ export async function renderProjects(container) {
                 setLoading(btnElement, false);
             }
         }
+    }
+
+    async function handleViewProject(id, btnElement) {
+        await showProjectDetails(id, btnElement);
     }
 
     async function handleEditProject(id, btnElement) {
@@ -1173,17 +1109,20 @@ export async function renderProjects(container) {
                 return;
             }
 
-            editingProjectId = id;
-            document.getElementById('modal-project-title').textContent = 'Editar Projeto';
-            document.getElementById('btn-save-project').textContent = 'Atualizar Projeto';
+            // Definir como projeto atual para simplificar verificação de bloqueio
+            currentProjectData = project;
 
-            document.getElementById('proj-name').value = project.name;
-            document.getElementById('proj-start').value = project.start_date;
-            document.getElementById('proj-duration').value = project.duration_months;
-            document.getElementById('proj-tax').value = project.tax_rate;
-            document.getElementById('proj-margin').value = project.margin_rate;
+            $('modal-project-title').textContent = 'Editar Projeto';
+            $('btn-save-project').textContent = 'Atualizar Projeto';
 
-            document.getElementById('price-result').style.display = 'none';
+            $('proj-name').value = project.name;
+            $('proj-start').value = project.start_date;
+            $('proj-duration').value = project.duration_months;
+            $('proj-tax').value = project.tax_rate;
+            $('proj-margin').value = project.margin_rate;
+
+            // Aplicar estado de bloqueio baseado no projeto atual
+            applyProjectLockState();
 
             modalProject.classList.add('active');
         } catch (e) {
@@ -1221,7 +1160,7 @@ export async function renderProjects(container) {
 
     async function handleDeleteProject(id, name, btnElement) {
         if (confirm(`Tem certeza que deseja excluir o projeto "${name}"?`)) {
-            if (currentProjectData && currentProjectData.id === id && currentProjectData.locked) {
+            if (getCurrentProjectId() === id && isProjectLocked()) {
                 alert('Projeto bloqueado para ajustes.');
                 return;
             }
@@ -1229,14 +1168,9 @@ export async function renderProjects(container) {
 
             try {
                 await api.delete(`/projects/${id}`);
-                if (currentProjectId === id) {
-                    currentProjectId = null;
-                    document.getElementById('proj-details').style.display = 'none';
-                    document.getElementById('price-result').style.display = 'none';
-                }
+                // Detalhes já foram escondidos pelo hideProjectDetails() chamado antes
                 loadProjects();
             } catch (error) {
-                console.error("Delete Error:", error);
                 alert(`Não foi possível excluir "${name}".\n\n${getApiErrorMessage(error)}`);
 
                 // Restore button only if error occurs
@@ -1265,12 +1199,8 @@ export async function renderProjects(container) {
             // Atualizar lista
             await loadProjects();
 
-            // Se estiver com o projeto aberto, recarrega e reaplica estado
-            if (currentProjectId === projectId) {
-                const project = await api.get(`/projects/${projectId}`);
-                currentProjectData = project;
-                applyProjectLockState();
-            }
+            // Exibir detalhes do projeto após alterar bloqueio
+            await showProjectDetails(projectId, null);
         } catch (error) {
             alert('Erro ao alterar bloqueio do projeto:\n\n' + getApiErrorMessage(error));
             setLoading(btnElement, false);
@@ -1278,34 +1208,50 @@ export async function renderProjects(container) {
     }
 
     // --- Helper Functions ---
+    
+    // Helpers para mostrar/esconder elementos
+    const setElementDisplay = (id, display) => {
+        const el = $(id);
+        if (el) el.style.display = display;
+    };
+    
+    const showElement = (id) => setElementDisplay(id, 'block');
+    const hideElement = (id) => setElementDisplay(id, 'none');
+
+    function hideProjectDetails() {
+        hideElement('proj-details');
+        hideElement('price-result');
+        currentProjectData = null;
+        allocationTableData = null;
+    }
+
     function displayProjectDetails(project) {
-        currentProjectId = project.id;
         currentProjectData = project;
-        document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
-        document.getElementById('proj-details').style.display = 'block';
-        document.getElementById('price-result').style.display = 'none';
+        $('proj-title-display').textContent = `Projeto: ${project.name}`;
+        showElement('proj-details');
+        hideElement('price-result');
         allocationTableData = null;
 
         loadOffersSelect();
         loadAllocationTable(project.id);
         applyProjectLockState();
-        document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
+        $('proj-details').scrollIntoView({ behavior: 'smooth' });
     }
 
     function applyProjectLockState() {
-        const locked = currentProjectData && currentProjectData.locked === true;
+        const locked = isProjectLocked();
 
-        const btnApplyOffer = document.getElementById('btn-apply-off');
-        const selOffer = document.getElementById('sel-offer');
+        const btnApplyOffer = $('btn-apply-off');
+        const selOffer = $('sel-offer');
         if (btnApplyOffer) btnApplyOffer.disabled = locked;
         if (selOffer) selOffer.disabled = locked;
 
-        const btnAddProf = document.getElementById('btn-add-professional');
+        const btnAddProf = $('btn-add-professional');
         if (btnAddProf) btnAddProf.disabled = locked;
 
         // btn-save-calc permanece habilitado mesmo quando bloqueado (permite calcular preço sem salvar)
 
-        const allocContainer = document.getElementById('allocation-table-container');
+        const allocContainer = $('allocation-table-container');
         if (allocContainer) {
             allocContainer.querySelectorAll('.alloc-input-selling, .alloc-input-hours').forEach((el) => {
                 el.disabled = locked;
@@ -1316,16 +1262,16 @@ export async function renderProjects(container) {
         }
 
         // Modal de adicionar profissional
-        const selAddProf = document.getElementById('sel-add-prof');
-        const inputRate = document.getElementById('input-add-prof-rate');
-        const btnConfirmAdd = document.getElementById('btn-confirm-add-prof');
+        const selAddProf = $('sel-add-prof');
+        const inputRate = $('input-add-prof-rate');
+        const btnConfirmAdd = $('btn-confirm-add-prof');
         if (selAddProf) selAddProf.disabled = locked;
         if (inputRate) inputRate.disabled = locked;
         if (btnConfirmAdd) btnConfirmAdd.disabled = locked;
 
         // Modal de editar projeto (apenas quando editando projeto existente bloqueado)
-        const isEditingExistingProject = Boolean(editingProjectId);
-        const btnSaveProject = document.getElementById('btn-save-project');
+        const isEditingExistingProject = getCurrentProjectId() !== null;
+        const btnSaveProject = $('btn-save-project');
         if (btnSaveProject) btnSaveProject.disabled = locked && isEditingExistingProject;
         document
             .querySelectorAll('#modal-project .modal-body input, #modal-project .modal-body select')
@@ -1334,6 +1280,28 @@ export async function renderProjects(container) {
             });
     }
 
+
+    // --- Helper Functions ---
+
+    // Verifica se o projeto está bloqueado
+    function isProjectLocked() {
+        return currentProjectData?.locked === true;
+    }
+
+    // Verifica e alerta se projeto está bloqueado
+    function checkProjectLocked() {
+        if (isProjectLocked()) {
+            alert('Projeto bloqueado para ajustes.');
+            return true;
+        }
+        return false;
+    }
+
+    // Calcula margem percentual
+    function calculateMarginPercent(sellingRate, costRate) {
+        if (!sellingRate || sellingRate <= 0) return '0.00';
+        return ((sellingRate - costRate) / sellingRate * 100).toFixed(2);
+    }
 
     // Extracts a readable error message from API responses (FastAPI/Pydantic)
     function getApiErrorMessage(error) {
@@ -1362,5 +1330,15 @@ export async function renderProjects(container) {
             // Restore: use explicit param OR saved dataset OR current fallback
             btn.innerHTML = originalHtml || btn.dataset.originalHtml || btn.innerHTML;
         }
+    }
+
+    // Mostra feedback de sucesso em botão
+    function showSuccessFeedback(btn, message, duration = 2000) {
+        btn.innerHTML = `<span class="material-icons" style="font-size: 1.25rem;">check</span> ${message}`;
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+            setLoading(btn, false);
+            btn.classList.remove('btn-success');
+        }, duration);
     }
 }

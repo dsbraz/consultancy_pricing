@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { formatCurrency, normalizeText } from '../utils.js';
+import { formatCurrency, normalizeText, $ } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
@@ -148,7 +148,7 @@ export async function renderProfessionals(container) {
     </div>
   `;
 
-    const toggleAdjustments = document.getElementById('toggle-adjustments');
+    const toggleAdjustments = $('toggle-adjustments');
     if (toggleAdjustments) {
         toggleAdjustments.checked = false;
         toggleAdjustments.addEventListener('change', (e) => {
@@ -188,21 +188,21 @@ export async function renderProfessionals(container) {
     });
 
     // Event listeners para paginação
-    document.getElementById('btn-prev-page').addEventListener('click', () => {
+    $('btn-prev-page').addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
             loadProfessionals();
         }
     });
 
-    document.getElementById('btn-next-page').addEventListener('click', () => {
+    $('btn-next-page').addEventListener('click', () => {
         currentPage++;
         loadProfessionals();
     });
 
     // Event listener para busca
     let searchTimeout = null;
-    const searchInput = document.getElementById('search-professionals');
+    const searchInput = $('search-professionals');
     searchInput.addEventListener('input', (e) => {
         // Limpar timeout anterior
         if (searchTimeout) {
@@ -246,11 +246,11 @@ export async function renderProfessionals(container) {
     }
 
     // --- Modal Logic (Create/Edit) ---
-    const modal = document.getElementById('modal-prof');
+    const modal = $('modal-prof');
 
     function openModal(title, saveText) {
-        document.getElementById('modal-prof-title').textContent = title;
-        document.getElementById('btn-save-prof').textContent = saveText;
+        $('modal-prof-title').textContent = title;
+        $('btn-save-prof').textContent = saveText;
         modal.classList.add('active');
     }
 
@@ -259,25 +259,25 @@ export async function renderProfessionals(container) {
         clearForm();
     }
 
-    document.getElementById('btn-new-prof').onclick = () => {
+    $('btn-new-prof').onclick = () => {
         if (!adjustmentsEnabled) return;
         editingId = null;
         clearForm();
         openModal('Novo Profissional / Template', 'Criar');
     };
 
-    document.getElementById('btn-close-modal-prof').onclick = closeModal;
-    document.getElementById('btn-cancel-prof').onclick = closeModal;
+    $('btn-close-modal-prof').onclick = closeModal;
+    $('btn-cancel-prof').onclick = closeModal;
     modal.onclick = (e) => {
         if (e.target === modal) closeModal();
     };
 
     // --- CSV Import Logic ---
-    const importModal = document.getElementById('modal-import-csv');
-    const importResults = document.getElementById('import-results');
-    const csvFileInput = document.getElementById('csv-file-input');
+    const importModal = $('modal-import-csv');
+    const importResults = $('import-results');
+    const csvFileInput = $('csv-file-input');
 
-    document.getElementById('btn-import-csv').onclick = () => {
+    $('btn-import-csv').onclick = () => {
         if (!adjustmentsEnabled) return;
         importModal.classList.add('active');
         importResults.style.display = 'none';
@@ -285,13 +285,13 @@ export async function renderProfessionals(container) {
     };
 
     const closeImportModal = () => importModal.classList.remove('active');
-    document.getElementById('btn-close-modal-import').onclick = closeImportModal;
-    document.getElementById('btn-cancel-import').onclick = closeImportModal;
+    $('btn-close-modal-import').onclick = closeImportModal;
+    $('btn-cancel-import').onclick = closeImportModal;
     importModal.onclick = (e) => {
         if (e.target === importModal) closeImportModal();
     };
 
-    document.getElementById('btn-upload-csv').onclick = async () => {
+    $('btn-upload-csv').onclick = async () => {
         if (!adjustmentsEnabled) return;
         const file = csvFileInput.files[0];
         if (!file || !file.name.endsWith('.csv')) {
@@ -299,7 +299,7 @@ export async function renderProfessionals(container) {
             return;
         }
 
-        const btn = document.getElementById('btn-upload-csv');
+        const btn = $('btn-upload-csv');
         setLoading(btn, true, 'Importando...');
 
         const formData = new FormData();
@@ -321,13 +321,13 @@ export async function renderProfessionals(container) {
             btn.classList.add('btn-success');
 
             importResults.style.display = 'block';
-            document.getElementById('import-stats').innerHTML = `
+            $('import-stats').innerHTML = `
         <p style="margin: 0.25rem 0;">✅ <strong>${result.created}</strong> profissionais criados</p>
         <p style="margin: 0.25rem 0;">🔄 <strong>${result.updated}</strong> profissionais atualizados</p>
         ${result.errors > 0 ? `<p style="margin: 0.25rem 0; color: var(--color-error);">❌ <strong>${result.errors}</strong> erros</p>` : ''}
       `;
 
-            const errorsDiv = document.getElementById('import-errors');
+            const errorsDiv = $('import-errors');
             if (result.error_details?.length > 0) {
                 errorsDiv.innerHTML = `
           <details style="margin-top: 0.5rem;">
@@ -355,14 +355,14 @@ export async function renderProfessionals(container) {
 
     // --- CRUD Operations ---
 
-    document.getElementById('btn-save-prof').onclick = async () => {
+    $('btn-save-prof').onclick = async () => {
         if (!adjustmentsEnabled) return;
-        const pid = normalizeText(document.getElementById('prof-id').value);
-        const name = normalizeText(document.getElementById('prof-name').value);
-        const role = normalizeText(document.getElementById('prof-role').value);
-        const level = normalizeText(document.getElementById('prof-level').value);
-        const is_template = document.getElementById('prof-type').value === 'true';
-        const hourly_cost = parseFloat(document.getElementById('prof-cost').value);
+        const pid = normalizeText($('prof-id').value);
+        const name = normalizeText($('prof-name').value);
+        const role = normalizeText($('prof-role').value);
+        const level = normalizeText($('prof-level').value);
+        const is_template = $('prof-type').value === 'true';
+        const hourly_cost = parseFloat($('prof-cost').value);
 
         if (pid && name && role && level) {
             const payload = {
@@ -375,7 +375,7 @@ export async function renderProfessionals(container) {
                 hourly_cost
             };
 
-            const btn = document.getElementById('btn-save-prof');
+            const btn = $('btn-save-prof');
             setLoading(btn, true, 'Salvando...');
 
             try {
@@ -398,18 +398,18 @@ export async function renderProfessionals(container) {
     };
 
     function clearForm() {
-        document.getElementById('prof-id').value = '';
-        document.getElementById('prof-name').value = '';
-        document.getElementById('prof-role').value = '';
-        document.getElementById('prof-level').value = '';
-        document.getElementById('prof-cost').value = '0.0';
-        document.getElementById('prof-type').value = 'false';
+        $('prof-id').value = '';
+        $('prof-name').value = '';
+        $('prof-role').value = '';
+        $('prof-level').value = '';
+        $('prof-cost').value = '0.0';
+        $('prof-type').value = 'false';
     }
 
     function updatePaginationControls(page, totalPages) {
-        const prevBtn = document.getElementById('btn-prev-page');
-        const nextBtn = document.getElementById('btn-next-page');
-        const indicator = document.getElementById('page-indicator');
+        const prevBtn = $('btn-prev-page');
+        const nextBtn = $('btn-next-page');
+        const indicator = $('page-indicator');
 
         if (!prevBtn || !nextBtn || !indicator) return;
 
@@ -503,13 +503,13 @@ export async function renderProfessionals(container) {
 
             if (prof) {
                 editingId = id;
-                document.getElementById('prof-id').value = prof.pid || '';
-                document.getElementById('prof-name').value = prof.name;
-                document.getElementById('prof-role').value = prof.role;
-                document.getElementById('prof-level').value = prof.level;
-                document.getElementById('prof-type').value =
+                $('prof-id').value = prof.pid || '';
+                $('prof-name').value = prof.name;
+                $('prof-role').value = prof.role;
+                $('prof-level').value = prof.level;
+                $('prof-type').value =
                     prof.is_template.toString();
-                document.getElementById('prof-cost').value = prof.hourly_cost;
+                $('prof-cost').value = prof.hourly_cost;
 
                 openModal('Editar Profissional', 'Atualizar');
             }
@@ -541,21 +541,21 @@ export async function renderProfessionals(container) {
     function setAdjustmentsEnabled(enabled) {
         adjustmentsEnabled = enabled;
 
-        const toggle = document.getElementById('toggle-adjustments');
+        const toggle = $('toggle-adjustments');
         if (toggle) toggle.checked = enabled;
 
         if (!enabled) {
-            const modalProf = document.getElementById('modal-prof');
+            const modalProf = $('modal-prof');
             if (modalProf) modalProf.classList.remove('active');
             clearForm();
 
-            const modalImport = document.getElementById('modal-import-csv');
+            const modalImport = $('modal-import-csv');
             if (modalImport) modalImport.classList.remove('active');
 
-            const importResults = document.getElementById('import-results');
+            const importResults = $('import-results');
             if (importResults) importResults.style.display = 'none';
 
-            const csvFileInput = document.getElementById('csv-file-input');
+            const csvFileInput = $('csv-file-input');
             if (csvFileInput) csvFileInput.value = '';
         }
 
@@ -570,7 +570,7 @@ export async function renderProfessionals(container) {
             toggleWrap.classList.toggle('is-unlocked', !locked);
         }
 
-        const indicator = document.getElementById('adjustments-indicator');
+        const indicator = $('adjustments-indicator');
         if (indicator) {
             const icon = indicator.querySelector('.material-icons');
             if (icon) icon.textContent = locked ? 'lock' : 'lock_open';
@@ -579,18 +579,18 @@ export async function renderProfessionals(container) {
         }
 
         // Header actions
-        const btnNew = document.getElementById('btn-new-prof');
-        const btnImport = document.getElementById('btn-import-csv');
+        const btnNew = $('btn-new-prof');
+        const btnImport = $('btn-import-csv');
         if (btnNew) btnNew.disabled = locked;
         if (btnImport) btnImport.disabled = locked;
 
         // Modal actions
-        const btnSave = document.getElementById('btn-save-prof');
-        const btnUpload = document.getElementById('btn-upload-csv');
+        const btnSave = $('btn-save-prof');
+        const btnUpload = $('btn-upload-csv');
         if (btnSave) btnSave.disabled = locked;
         if (btnUpload) btnUpload.disabled = locked;
 
-        const fileInput = document.getElementById('csv-file-input');
+        const fileInput = $('csv-file-input');
         if (fileInput) fileInput.disabled = locked;
 
         // Disable modal form fields (close/cancel remain enabled)

@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { normalizeText } from '../utils.js';
+import { normalizeText, $ } from '../utils.js';
 import { escapeHtml } from '../sanitize.js';
 
 
@@ -99,7 +99,7 @@ export async function renderOffers(container) {
     </div>
   `;
 
-    const toggleAdjustments = document.getElementById('toggle-adjustments');
+    const toggleAdjustments = $('toggle-adjustments');
     if (toggleAdjustments) {
         toggleAdjustments.checked = false;
         toggleAdjustments.addEventListener('change', (e) => {
@@ -134,45 +134,45 @@ export async function renderOffers(container) {
         await enrichAndRenderOffers(offersData);
     } catch (e) {
         console.error("Initialization error", e);
-        document.getElementById('offers-list').innerHTML = '<p style="color: red;">Erro ao carregar dados.</p>';
+        $('offers-list').innerHTML = '<p style="color: red;">Erro ao carregar dados.</p>';
     }
 
     // --- Event Listeners ---
 
-    document.getElementById('sort-select').addEventListener('change', (e) => {
+    $('sort-select').addEventListener('change', (e) => {
         currentSortBy = e.target.value;
         reloadOffers();
     });
 
-    document.getElementById('sort-direction-btn').addEventListener('click', () => {
+    $('sort-direction-btn').addEventListener('click', () => {
         currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-        const icon = document.getElementById('sort-icon');
+        const icon = $('sort-icon');
         icon.textContent = currentSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward';
         reloadOffers();
     });
 
-    const modal = document.getElementById('modal-offer');
+    const modal = $('modal-offer');
 
-    document.getElementById('btn-new-offer').onclick = () => {
+    $('btn-new-offer').onclick = () => {
         if (!adjustmentsEnabled) return;
         editingId = null;
         currentItems = [];
-        document.getElementById('modal-offer-title').textContent = 'Nova Oferta';
-        document.getElementById('btn-save-offer').textContent = 'Criar Oferta';
+        $('modal-offer-title').textContent = 'Nova Oferta';
+        $('btn-save-offer').textContent = 'Criar Oferta';
         clearForm();
         renderItemsList();
         modal.classList.add('active');
     };
 
-    document.getElementById('btn-close-modal-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
-    document.getElementById('btn-cancel-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
+    $('btn-close-modal-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
+    $('btn-cancel-offer').onclick = () => { modal.classList.remove('active'); clearForm(); };
     modal.onclick = (e) => { if (e.target === modal) { modal.classList.remove('active'); clearForm(); } };
 
     // --- Helper Functions ---
 
     function populateProfessionalSelect(profList) {
         const list = profList || Array.from(professionalsMap.values());
-        const select = document.getElementById('off-prof-select');
+        const select = $('off-prof-select');
 
         const options = list
             .filter(p => p.is_template)
@@ -182,11 +182,11 @@ export async function renderOffers(container) {
     }
 
     function updateProfessionalInfo() {
-        const sel = document.getElementById('off-prof-select');
+        const sel = $('off-prof-select');
         const opt = sel.options[sel.selectedIndex];
-        const profInfo = document.getElementById('prof-info');
-        const profRoleLevel = document.getElementById('prof-role-level');
-        const alloc = document.getElementById('off-alloc').value || '100';
+        const profInfo = $('prof-info');
+        const profRoleLevel = $('prof-role-level');
+        const alloc = $('off-alloc').value || '100';
 
         if (opt.value) {
             profRoleLevel.textContent = `${opt.dataset.role} ${opt.dataset.level} - ${alloc}% alocação`;
@@ -196,15 +196,15 @@ export async function renderOffers(container) {
         }
     }
 
-    document.getElementById('off-prof-select').onchange = updateProfessionalInfo;
-    document.getElementById('off-alloc').oninput = () => {
-        if (document.getElementById('off-prof-select').value) updateProfessionalInfo();
+    $('off-prof-select').onchange = updateProfessionalInfo;
+    $('off-alloc').oninput = () => {
+        if ($('off-prof-select').value) updateProfessionalInfo();
     };
 
-    document.getElementById('btn-add-item').onclick = () => {
+    $('btn-add-item').onclick = () => {
         if (!adjustmentsEnabled) return;
-        const profId = document.getElementById('off-prof-select').value;
-        const alloc = parseFloat(document.getElementById('off-alloc').value) || 100;
+        const profId = $('off-prof-select').value;
+        const alloc = parseFloat($('off-alloc').value) || 100;
 
         if (!profId) { alert('Por favor, selecione um profissional'); return; }
 
@@ -221,13 +221,13 @@ export async function renderOffers(container) {
 
         renderItemsList();
 
-        document.getElementById('off-prof-select').value = '';
-        document.getElementById('off-alloc').value = '100';
-        document.getElementById('prof-info').style.display = 'none';
+        $('off-prof-select').value = '';
+        $('off-alloc').value = '100';
+        $('prof-info').style.display = 'none';
     };
 
     function renderItemsList() {
-        const listDiv = document.getElementById('off-items-list');
+        const listDiv = $('off-items-list');
         if (currentItems.length === 0) {
             listDiv.innerHTML = '<small style="color: #6b7280;">Nenhum item adicionado ainda</small>';
             return;
@@ -271,14 +271,14 @@ export async function renderOffers(container) {
 
     // --- API Interactions ---
 
-    document.getElementById('btn-save-offer').onclick = async () => {
+    $('btn-save-offer').onclick = async () => {
         if (!adjustmentsEnabled) return;
-        const name = normalizeText(document.getElementById('off-name').value);
+        const name = normalizeText($('off-name').value);
 
         if (!name) { alert('Por favor, insira um nome para a oferta'); return; }
         if (currentItems.length === 0) { alert('Por favor, adicione pelo menos um item à oferta'); return; }
 
-        const btn = document.getElementById('btn-save-offer');
+        const btn = $('btn-save-offer');
         setLoading(btn, true, 'Salvando...');
 
         const itemsPayload = currentItems.map(i => ({
@@ -325,10 +325,10 @@ export async function renderOffers(container) {
     function clearForm() {
         currentItems = [];
         editingOriginalItems = [];
-        document.getElementById('off-name').value = '';
-        document.getElementById('off-prof-select').value = '';
-        document.getElementById('off-alloc').value = '100';
-        document.getElementById('prof-info').style.display = 'none';
+        $('off-name').value = '';
+        $('off-prof-select').value = '';
+        $('off-alloc').value = '100';
+        $('prof-info').style.display = 'none';
         renderItemsList();
     }
 
@@ -350,7 +350,7 @@ export async function renderOffers(container) {
     }
 
     async function reloadOffers() {
-        const listDiv = document.getElementById('offers-list');
+        const listDiv = $('offers-list');
         listDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #6b7280;">Atualizando...</div>';
         try {
             const offers = await api.get('/offers/');
@@ -361,7 +361,7 @@ export async function renderOffers(container) {
     }
 
     async function enrichAndRenderOffers(offers) {
-        const listDiv = document.getElementById('offers-list');
+        const listDiv = $('offers-list');
 
         if (offers.length === 0) {
             listDiv.innerHTML = '<p style="color: #6b7280;">Nenhuma oferta criada ainda</p>';
@@ -445,9 +445,9 @@ export async function renderOffers(container) {
                 };
             });
 
-            document.getElementById('modal-offer-title').textContent = 'Editar Oferta';
-            document.getElementById('btn-save-offer').textContent = 'Atualizar Oferta';
-            document.getElementById('off-name').value = offer.name || (offersCache.get(id)?.name ?? '');
+            $('modal-offer-title').textContent = 'Editar Oferta';
+            $('btn-save-offer').textContent = 'Atualizar Oferta';
+            $('off-name').value = offer.name || (offersCache.get(id)?.name ?? '');
             renderItemsList();
             modal.classList.add('active');
         } catch (e) {
@@ -476,11 +476,11 @@ export async function renderOffers(container) {
     function setAdjustmentsEnabled(enabled) {
         adjustmentsEnabled = enabled;
 
-        const toggle = document.getElementById('toggle-adjustments');
+        const toggle = $('toggle-adjustments');
         if (toggle) toggle.checked = enabled;
 
         if (!enabled) {
-            const modal = document.getElementById('modal-offer');
+            const modal = $('modal-offer');
             if (modal) modal.classList.remove('active');
             clearForm();
             editingId = null;
@@ -495,7 +495,7 @@ export async function renderOffers(container) {
         const toggleWrap = container.querySelector('.adjustments-toggle');
         if (toggleWrap) toggleWrap.classList.toggle('is-unlocked', !locked);
 
-        const indicator = document.getElementById('adjustments-indicator');
+        const indicator = $('adjustments-indicator');
         if (indicator) {
             const icon = indicator.querySelector('.material-icons');
             if (icon) icon.textContent = locked ? 'lock' : 'lock_open';
@@ -503,11 +503,11 @@ export async function renderOffers(container) {
             indicator.classList.toggle('is-unlocked', !locked);
         }
 
-        const btnNew = document.getElementById('btn-new-offer');
+        const btnNew = $('btn-new-offer');
         if (btnNew) btnNew.disabled = locked;
 
-        const btnAddItem = document.getElementById('btn-add-item');
-        const btnSave = document.getElementById('btn-save-offer');
+        const btnAddItem = $('btn-add-item');
+        const btnSave = $('btn-save-offer');
         if (btnAddItem) btnAddItem.disabled = locked;
         if (btnSave) btnSave.disabled = locked;
 

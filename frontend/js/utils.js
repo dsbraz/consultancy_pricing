@@ -11,3 +11,6 @@ export function normalizeText(value) {
     if (value === undefined || value === null) return '';
     return String(value).trim();
 }
+
+// Helper para seletores DOM frequentes
+export const $ = (id) => document.getElementById(id);
