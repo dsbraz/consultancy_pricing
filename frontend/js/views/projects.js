@@ -407,14 +407,11 @@ export async function renderProjects(container) {
             alert('Nenhum projeto selecionado.');
             return;
         }
-        if (currentProjectData && currentProjectData.locked) {
-            alert('Projeto bloqueado para ajustes.');
-            return;
-        }
         if (!allocationTableData) return;
 
         const btn = document.getElementById('btn-save-calc');
-        setLoading(btn, true, 'Calculando...');
+        const isLocked = currentProjectData && currentProjectData.locked;
+        setLoading(btn, true, isLocked ? 'Calculando...' : 'Salvando...');
 
         const updates = [];
 
@@ -441,8 +438,11 @@ export async function renderProjects(container) {
         });
 
         try {
-            // Atualização parcial de alocações usa PATCH no backend
-            await api.patch(`/projects/${currentProjectId}/allocations`, updates);
+            // Se bloqueado, apenas calcular preço sem salvar alocações
+            if (!isLocked) {
+                // Atualização parcial de alocações usa PATCH no backend
+                await api.patch(`/projects/${currentProjectId}/allocations`, updates);
+            }
             const res = await api.get(`/projects/${currentProjectId}/pricing`);
 
             document.getElementById('res-cost').textContent = formatCurrency(res.total_cost);
@@ -1313,8 +1313,7 @@ export async function renderProjects(container) {
         const btnAddProf = document.getElementById('btn-add-professional');
         if (btnAddProf) btnAddProf.disabled = locked;
 
-        const btnSaveCalc = document.getElementById('btn-save-calc');
-        if (btnSaveCalc) btnSaveCalc.disabled = locked;
+        // btn-save-calc permanece habilitado mesmo quando bloqueado (permite calcular preço sem salvar)
 
         const allocContainer = document.getElementById('allocation-table-container');
         if (allocContainer) {
