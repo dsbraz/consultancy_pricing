@@ -105,6 +105,7 @@ class ProjectUpdate(BaseModel):
     duration_months: Optional[int] = Field(None, ge=1)
     tax_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
     margin_rate: Optional[float] = Field(None, ge=0.0, le=100.0)
+    adjustments_enabled: Optional[bool] = None
 
 
 class WeeklyAllocationBase(BaseModel):
@@ -145,6 +146,7 @@ class ProjectCreate(ProjectBase):
 class Project(ProjectBase, ORMModel):
     id: int
     allocations: List[ProjectAllocation] = Field(default_factory=list)
+    adjustments_enabled: bool = True
 
 
 class ProjectPricing(ORMModel):
