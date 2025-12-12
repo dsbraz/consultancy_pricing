@@ -11,6 +11,7 @@ export async function renderProfessionals(container) {
     let professionalsData = [];
     let currentPage = 1;
     let searchQuery = '';
+    let adjustmentsEnabled = false;
 
     // Initial HTML Structure
     container.innerHTML = `
@@ -24,6 +25,16 @@ export async function renderProfessionals(container) {
           </div>
         </div>
         <div style="display: flex; gap: 0.5rem;">
+          <div class="adjustments-toggle">
+            <span class="adjustments-toggle__label">Habilitar ajustes</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-adjustments">
+              <span class="toggle-slider" aria-hidden="true"></span>
+            </label>
+            <span id="adjustments-indicator" class="adjustments-indicator" title="Bloqueado">
+              <span class="material-icons" aria-hidden="true">lock</span>
+            </span>
+          </div>
           <button id="btn-import-csv" class="btn" style="background: var(--color-secondary);">
             <span class="material-icons" style="margin-right: 0.5rem;">upload_file</span>
             Importar CSV
@@ -137,7 +148,28 @@ export async function renderProfessionals(container) {
     </div>
   `;
 
+    const toggleAdjustments = document.getElementById('toggle-adjustments');
+    if (toggleAdjustments) {
+        toggleAdjustments.checked = false;
+        toggleAdjustments.addEventListener('change', (e) => {
+            const nextEnabled = e.target.checked;
+            if (nextEnabled) {
+                const ok = confirm(
+                    'Atenção: a mudança das informações só deve ser feita pela equipe do CoE.\n\nDeseja habilitar ajustes?'
+                );
+                if (!ok) {
+                    e.target.checked = false;
+                    return;
+                }
+                setAdjustmentsEnabled(true);
+            } else {
+                setAdjustmentsEnabled(false);
+            }
+        });
+    }
+
     // Fetch Data
+    applyLockState();
     await loadProfessionals();
 
     // --- Sorting Logic ---
@@ -228,6 +260,7 @@ export async function renderProfessionals(container) {
     }
 
     document.getElementById('btn-new-prof').onclick = () => {
+        if (!adjustmentsEnabled) return;
         editingId = null;
         clearForm();
         openModal('Novo Profissional / Template', 'Criar');
@@ -245,6 +278,7 @@ export async function renderProfessionals(container) {
     const csvFileInput = document.getElementById('csv-file-input');
 
     document.getElementById('btn-import-csv').onclick = () => {
+        if (!adjustmentsEnabled) return;
         importModal.classList.add('active');
         importResults.style.display = 'none';
         csvFileInput.value = '';
@@ -258,6 +292,7 @@ export async function renderProfessionals(container) {
     };
 
     document.getElementById('btn-upload-csv').onclick = async () => {
+        if (!adjustmentsEnabled) return;
         const file = csvFileInput.files[0];
         if (!file || !file.name.endsWith('.csv')) {
             alert('Por favor, selecione um arquivo CSV válido');
@@ -321,6 +356,7 @@ export async function renderProfessionals(container) {
     // --- CRUD Operations ---
 
     document.getElementById('btn-save-prof').onclick = async () => {
+        if (!adjustmentsEnabled) return;
         const pid = normalizeText(document.getElementById('prof-id').value);
         const name = normalizeText(document.getElementById('prof-name').value);
         const role = normalizeText(document.getElementById('prof-role').value);
@@ -395,6 +431,7 @@ export async function renderProfessionals(container) {
             
             renderTableBody();
             updateHeaderStyles();
+            applyLockState();
             
             // Atualizar controles de paginação
             const totalPages = Math.ceil(total / 50);
@@ -430,10 +467,8 @@ export async function renderProfessionals(container) {
         <td>${p.is_template ? 'Template' : 'Pessoa'}</td>
         <td>${formatCurrency(p.hourly_cost)}</td>
         <td>
-          <button class="btn btn-sm" data-action="edit" data-id="${p.id
-                    }">Editar</button>
-          <button class="btn btn-sm btn-danger" data-action="delete" data-id="${p.id
-                    }" data-name="${escapeHtml(p.name)}">Excluir</button>
+          <button class="btn btn-sm" data-action="edit" data-id="${p.id}" ${adjustmentsEnabled ? '' : 'disabled'}>Editar</button>
+          <button class="btn btn-sm btn-danger" data-action="delete" data-id="${p.id}" data-name="${escapeHtml(p.name)}" ${adjustmentsEnabled ? '' : 'disabled'}>Excluir</button>
         </td>
       </tr>
     `
@@ -443,6 +478,7 @@ export async function renderProfessionals(container) {
         // Event Delegation for action buttons
         tbody.querySelectorAll('button[data-action]').forEach((btn) => {
             btn.addEventListener('click', () => {
+                if (!adjustmentsEnabled) return;
                 const action = btn.dataset.action;
                 const id = parseInt(btn.dataset.id);
 
@@ -458,6 +494,7 @@ export async function renderProfessionals(container) {
     // --- Internal Handlers (Scoped) ---
 
     async function handleEditProfessional(id, btnElement) {
+        if (!adjustmentsEnabled) return;
         setLoading(btnElement, true, '...');
 
         try {
@@ -485,6 +522,7 @@ export async function renderProfessionals(container) {
     }
 
     async function handleDeleteProfessional(id, name, btnElement) {
+        if (!adjustmentsEnabled) return;
         if (confirm(`Tem certeza que deseja excluir "${name}"?`)) {
             setLoading(btnElement, true, '');
 
@@ -500,6 +538,78 @@ export async function renderProfessionals(container) {
     }
 
     // --- Helper Functions ---
+    function setAdjustmentsEnabled(enabled) {
+        adjustmentsEnabled = enabled;
+
+        const toggle = document.getElementById('toggle-adjustments');
+        if (toggle) toggle.checked = enabled;
+
+        if (!enabled) {
+            const modalProf = document.getElementById('modal-prof');
+            if (modalProf) modalProf.classList.remove('active');
+            clearForm();
+
+            const modalImport = document.getElementById('modal-import-csv');
+            if (modalImport) modalImport.classList.remove('active');
+
+            const importResults = document.getElementById('import-results');
+            if (importResults) importResults.style.display = 'none';
+
+            const csvFileInput = document.getElementById('csv-file-input');
+            if (csvFileInput) csvFileInput.value = '';
+        }
+
+        applyLockState();
+    }
+
+    function applyLockState() {
+        const locked = !adjustmentsEnabled;
+
+        const toggleWrap = container.querySelector('.adjustments-toggle');
+        if (toggleWrap) {
+            toggleWrap.classList.toggle('is-unlocked', !locked);
+        }
+
+        const indicator = document.getElementById('adjustments-indicator');
+        if (indicator) {
+            const icon = indicator.querySelector('.material-icons');
+            if (icon) icon.textContent = locked ? 'lock' : 'lock_open';
+            indicator.title = locked ? 'Bloqueado' : 'Ajustes habilitados';
+            indicator.classList.toggle('is-unlocked', !locked);
+        }
+
+        // Header actions
+        const btnNew = document.getElementById('btn-new-prof');
+        const btnImport = document.getElementById('btn-import-csv');
+        if (btnNew) btnNew.disabled = locked;
+        if (btnImport) btnImport.disabled = locked;
+
+        // Modal actions
+        const btnSave = document.getElementById('btn-save-prof');
+        const btnUpload = document.getElementById('btn-upload-csv');
+        if (btnSave) btnSave.disabled = locked;
+        if (btnUpload) btnUpload.disabled = locked;
+
+        const fileInput = document.getElementById('csv-file-input');
+        if (fileInput) fileInput.disabled = locked;
+
+        // Disable modal form fields (close/cancel remain enabled)
+        document
+            .querySelectorAll('#modal-prof .modal-body input, #modal-prof .modal-body select')
+            .forEach((el) => {
+                el.disabled = locked;
+            });
+        document
+            .querySelectorAll('#modal-import-csv .modal-body input, #modal-import-csv .modal-body select')
+            .forEach((el) => {
+                el.disabled = locked;
+            });
+
+        // Table action buttons (may be re-rendered)
+        document.querySelectorAll('#prof-table tbody button[data-action]').forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
 
     // Extracts a readable error message from API responses (FastAPI/Pydantic)
     function getApiErrorMessage(error) {

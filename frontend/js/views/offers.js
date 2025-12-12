@@ -12,16 +12,29 @@ export async function renderOffers(container) {
     let currentSortBy = 'name';
     let currentSortDirection = 'asc';
     let offersCache = new Map();
+    let adjustmentsEnabled = false;
 
     // Initial HTML Structure
     container.innerHTML = `
     <div class="card">
         <div class="header-actions">
             <h3>Lista de Ofertas</h3>
-            <button id="btn-new-offer" class="btn btn-primary">
-                <span class="material-icons" style="margin-right: 0.5rem;">add</span>
-                Nova Oferta
-            </button>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div class="adjustments-toggle">
+                    <span class="adjustments-toggle__label">Habilitar ajustes</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-adjustments">
+                        <span class="toggle-slider" aria-hidden="true"></span>
+                    </label>
+                    <span id="adjustments-indicator" class="adjustments-indicator" title="Bloqueado">
+                        <span class="material-icons" aria-hidden="true">lock</span>
+                    </span>
+                </div>
+                <button id="btn-new-offer" class="btn btn-primary">
+                    <span class="material-icons" style="margin-right: 0.5rem;">add</span>
+                    Nova Oferta
+                </button>
+            </div>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0 0.5rem;">
             <label style="font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); font-weight: 500;">Ordenar por:</label>
@@ -86,6 +99,27 @@ export async function renderOffers(container) {
     </div>
   `;
 
+    const toggleAdjustments = document.getElementById('toggle-adjustments');
+    if (toggleAdjustments) {
+        toggleAdjustments.checked = false;
+        toggleAdjustments.addEventListener('change', (e) => {
+            const nextEnabled = e.target.checked;
+            if (nextEnabled) {
+                const ok = confirm(
+                    'Atenção: a mudança das informações só deve ser feita pela equipe do CoE.\n\nDeseja habilitar ajustes?'
+                );
+                if (!ok) {
+                    e.target.checked = false;
+                    return;
+                }
+                setAdjustmentsEnabled(true);
+            } else {
+                setAdjustmentsEnabled(false);
+            }
+        });
+    }
+    applyLockState();
+
     // Fetch critical data in parallel
     try {
         const [profs, offersData] = await Promise.all([
@@ -120,6 +154,7 @@ export async function renderOffers(container) {
     const modal = document.getElementById('modal-offer');
 
     document.getElementById('btn-new-offer').onclick = () => {
+        if (!adjustmentsEnabled) return;
         editingId = null;
         currentItems = [];
         document.getElementById('modal-offer-title').textContent = 'Nova Oferta';
@@ -167,6 +202,7 @@ export async function renderOffers(container) {
     };
 
     document.getElementById('btn-add-item').onclick = () => {
+        if (!adjustmentsEnabled) return;
         const profId = document.getElementById('off-prof-select').value;
         const alloc = parseFloat(document.getElementById('off-alloc').value) || 100;
 
@@ -214,19 +250,21 @@ export async function renderOffers(container) {
             return `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 0.25rem; margin-bottom: 0.25rem;">
             <span>${label}${allocLabel}</span>
-            <button class="btn btn-sm btn-danger" data-remove-index="${idx}">Remover</button>
+            <button class="btn btn-sm btn-danger" data-remove-index="${idx}" ${adjustmentsEnabled ? '' : 'disabled'}>Remover</button>
         </div>
       `;
         }).join('');
 
         listDiv.querySelectorAll('button[data-remove-index]').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (!adjustmentsEnabled) return;
                 handleRemoveOfferItem(parseInt(btn.dataset.removeIndex));
             });
         });
     }
 
     function handleRemoveOfferItem(idx) {
+        if (!adjustmentsEnabled) return;
         currentItems.splice(idx, 1);
         renderItemsList();
     }
@@ -234,6 +272,7 @@ export async function renderOffers(container) {
     // --- API Interactions ---
 
     document.getElementById('btn-save-offer').onclick = async () => {
+        if (!adjustmentsEnabled) return;
         const name = normalizeText(document.getElementById('off-name').value);
 
         if (!name) { alert('Por favor, insira um nome para a oferta'); return; }
@@ -326,6 +365,7 @@ export async function renderOffers(container) {
 
         if (offers.length === 0) {
             listDiv.innerHTML = '<p style="color: #6b7280;">Nenhuma oferta criada ainda</p>';
+            applyLockState();
             return;
         }
 
@@ -348,8 +388,8 @@ export async function renderOffers(container) {
                     <small style="color: #6b7280;">${t.items.length} item${t.items.length !== 1 ? 's' : ''}</small>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-sm" data-action="edit" data-offer-id="${t.id}">Editar</button>
-                    <button class="btn btn-sm btn-danger" data-action="delete" data-offer-id="${t.id}" data-offer-name="${escapeHtml(t.name)}">Excluir</button>
+                    <button class="btn btn-sm" data-action="edit" data-offer-id="${t.id}" ${adjustmentsEnabled ? '' : 'disabled'}>Editar</button>
+                    <button class="btn btn-sm btn-danger" data-action="delete" data-offer-id="${t.id}" data-offer-name="${escapeHtml(t.name)}" ${adjustmentsEnabled ? '' : 'disabled'}>Excluir</button>
                 </div>
             </div>
             <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
@@ -370,6 +410,7 @@ export async function renderOffers(container) {
 
         listDiv.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (!adjustmentsEnabled) return;
                 const action = btn.dataset.action;
                 const offerId = parseInt(btn.dataset.offerId);
 
@@ -377,11 +418,14 @@ export async function renderOffers(container) {
                 else if (action === 'delete') handleDeleteOffer(offerId, btn.dataset.offerName, btn);
             });
         });
+
+        applyLockState();
     }
 
     // --- Scoped Internal Handlers ---
 
     async function handleEditOffer(id, btnElement) {
+        if (!adjustmentsEnabled) return;
         setLoading(btnElement, true, '');
 
         try {
@@ -415,6 +459,7 @@ export async function renderOffers(container) {
     }
 
     async function handleDeleteOffer(id, name, btnElement) {
+        if (!adjustmentsEnabled) return;
         if (confirm(`Tem certeza que deseja excluir a oferta "${name}"?`)) {
             setLoading(btnElement, true, '');
             try {
@@ -428,6 +473,58 @@ export async function renderOffers(container) {
     }
 
     // --- Helper Functions ---
+    function setAdjustmentsEnabled(enabled) {
+        adjustmentsEnabled = enabled;
+
+        const toggle = document.getElementById('toggle-adjustments');
+        if (toggle) toggle.checked = enabled;
+
+        if (!enabled) {
+            const modal = document.getElementById('modal-offer');
+            if (modal) modal.classList.remove('active');
+            clearForm();
+            editingId = null;
+        }
+
+        applyLockState();
+    }
+
+    function applyLockState() {
+        const locked = !adjustmentsEnabled;
+
+        const toggleWrap = container.querySelector('.adjustments-toggle');
+        if (toggleWrap) toggleWrap.classList.toggle('is-unlocked', !locked);
+
+        const indicator = document.getElementById('adjustments-indicator');
+        if (indicator) {
+            const icon = indicator.querySelector('.material-icons');
+            if (icon) icon.textContent = locked ? 'lock' : 'lock_open';
+            indicator.title = locked ? 'Bloqueado' : 'Ajustes habilitados';
+            indicator.classList.toggle('is-unlocked', !locked);
+        }
+
+        const btnNew = document.getElementById('btn-new-offer');
+        if (btnNew) btnNew.disabled = locked;
+
+        const btnAddItem = document.getElementById('btn-add-item');
+        const btnSave = document.getElementById('btn-save-offer');
+        if (btnAddItem) btnAddItem.disabled = locked;
+        if (btnSave) btnSave.disabled = locked;
+
+        document
+            .querySelectorAll('#modal-offer .modal-body input, #modal-offer .modal-body select')
+            .forEach((el) => {
+                el.disabled = locked;
+            });
+
+        document.querySelectorAll('#offers-list button[data-action]').forEach((btn) => {
+            btn.disabled = locked;
+        });
+
+        document.querySelectorAll('#off-items-list button[data-remove-index]').forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
 
     // Extracts a readable error message from API responses (FastAPI/Pydantic)
     function getApiErrorMessage(error) {
