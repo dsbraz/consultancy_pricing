@@ -339,19 +339,9 @@ export async function renderProjects(container) {
                 const project = await api.post('/projects/', {
                     name, start_date, duration_months, tax_rate, margin_rate, allocations: []
                 });
-                currentProjectId = project.id;
-                currentProjectData = project;
-                document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
-                document.getElementById('proj-details').style.display = 'block';
-                document.getElementById('price-result').style.display = 'none';
-                allocationTableData = null;
-
                 modalProject.classList.remove('active');
                 clearProjectForm();
-                loadOffersSelect();
-                loadAllocationTable(project.id);
-                applyProjectLockState();
-                document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
+                displayProjectDetails(project);
                 loadProjects();
             }
         } catch (error) {
@@ -1163,18 +1153,7 @@ export async function renderProjects(container) {
 
         try {
             const project = await api.get(`/projects/${id}`);
-            currentProjectId = id;
-            currentProjectData = project;
-            document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
-            document.getElementById('price-result').style.display = 'none';
-            document.getElementById('proj-details').style.display = 'block';
-            loadOffersSelect();
-            // Load allocation table
-            loadAllocationTable(id);
-            applyProjectLockState();
-
-            // Scroll to details
-            document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
+            displayProjectDetails(project);
         } catch (e) {
             alert('Erro ao visualizar projeto.');
         } finally {
@@ -1220,7 +1199,7 @@ export async function renderProjects(container) {
 
             try {
                 const original = await api.get(`/projects/${id}`);
-                await api.post('/projects/', {
+                const clonedProject = await api.post('/projects/', {
                     name: `Cópia de ${original.name}`,
                     start_date: original.start_date,
                     duration_months: original.duration_months,
@@ -1229,11 +1208,8 @@ export async function renderProjects(container) {
                     from_project_id: id,
                     allocations: []
                 });
-                if (currentProjectId === id) {
-                    currentProjectId = null;
-                    document.getElementById('proj-details').style.display = 'none';
-                    document.getElementById('price-result').style.display = 'none';
-                }
+                
+                displayProjectDetails(clonedProject);
                 loadProjects();
             } catch (error) {
                 alert('Erro ao clonar projeto:\n\n' + getApiErrorMessage(error));
@@ -1302,6 +1278,20 @@ export async function renderProjects(container) {
     }
 
     // --- Helper Functions ---
+    function displayProjectDetails(project) {
+        currentProjectId = project.id;
+        currentProjectData = project;
+        document.getElementById('proj-title-display').textContent = `Projeto: ${project.name}`;
+        document.getElementById('proj-details').style.display = 'block';
+        document.getElementById('price-result').style.display = 'none';
+        allocationTableData = null;
+
+        loadOffersSelect();
+        loadAllocationTable(project.id);
+        applyProjectLockState();
+        document.getElementById('proj-details').scrollIntoView({ behavior: 'smooth' });
+    }
+
     function applyProjectLockState() {
         const locked = currentProjectData && currentProjectData.locked === true;
 
